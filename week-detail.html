@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>周详情 · Week Detail</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f5f4f1;
+    color: #2c2c2c;
+    line-height: 1.6;
+    padding: 16px 16px 40px;
+    max-width: 500px;
+    margin: 0 auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0 12px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .back-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #888;
+    cursor: pointer;
+    padding: 6px 10px;
+  }
+  .back-btn:active { color: #333; }
+
+  /* Week Nav */
+  .week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .week-nav button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .week-nav .week-label {
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 140px;
+    text-align: center;
+  }
+
+  /* ── Day Cards ── */
+  .day-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .day-card {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .day-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .day-header .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .day-header .day-info { flex: 1; }
+  .day-header .day-name {
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.2;
+  }
+  .day-header .day-date {
+    font-size: 11px;
+    color: #999;
+  }
+  .day-header .day-badges {
+    display: flex;
+    gap: 4px;
+    margin-right: 8px;
+  }
+  .day-header .arrow {
+    font-size: 12px;
+    color: #bbb;
+    transition: transform 0.2s;
+  }
+  .day-card.open .arrow { transform: rotate(180deg); }
+
+  .day-body {
+    display: none;
+    padding: 0 16px 16px 38px;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.7;
+  }
+  .day-card.open .day-body { display: block; }
+
+  .day-body .section-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 10px 0 4px;
+  }
+  .day-body .section-label:first-child { margin-top: 0; }
+  .day-body .item {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 12.5px;
+    border-bottom: 1px solid #f5f5f5;
+  }
+  .day-body .item:last-child { border-bottom: none; }
+  .day-body .item .it-left { flex: 1; }
+  .day-body .item .it-right { color: #999; font-size: 11px; text-align: right; margin-left: 8px; }
+  .day-body .coach-note {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 4px;
+    font-style: italic;
+  }
+  .day-body .special-note {
+    background: #fff3e0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    color: #e65100;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .day-body .food-summary {
+    font-weight: 600;
+    font-size: 12px;
+    padding: 6px 0;
+  }
+  .empty-note {
+    font-size: 11px;
+    color: #ccc;
+  }
+  .ex-section { margin-bottom: 6px; }
+  .ex-label { font-size: 10px; font-weight: 600; color: #aaa; margin: 4px 0 2px; }
+  .item.dim .it-left { color: #bbb; }
+
+  /* Badges */
+  .badge-sm {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-weight: 700;
+  }
+  .badge-sm.pro-yes { background: #d1fae5; color: #065f46; }
+  .badge-sm.pro-no { background: #fee2e2; color: #991b1b; }
+  .badge-sm.cal-yes { background: #dbeafe; color: #1e40af; }
+  .badge-sm.cal-no { background: #fee2e2; color: #991b1b; }
+  .badge-sm.cal-over { background: #fef3c7; color: #92400e; }
+
+  /* Color dots */
+  .dot.pull { background: #3b82f6; }
+  .dot.push { background: #d97706; }
+  .dot.shoulder { background: #10b981; }
+  .dot.pilates { background: #8b5cf6; }
+  .dot.rest { background: #d1d5db; }
+
+  /* ── Rules ── */
+  .compact-rules {
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .compact-rules .title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: #666;
+  }
+  .compact-rules .rule {
+    font-size: 11.5px;
+    color: #888;
+    padding: 3px 0;
+  }
+  .compact-rules .rule span { font-weight: 600; color: #555; }
+
+  /* ── Nav ── */
+  .nav-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .nav-btn {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .nav-btn.active { background: #1a1a1a; color: #fff; }
+  .nav-btn.inactive { background: #fff; color: #888; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .footer-note { text-align: center; font-size: 11px; color: #bbb; margin-top: 16px; }
+
+  /* ── Weekly Summary ── */
+  .week-summary {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .week-summary .ws-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  .week-summary .ws-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    padding: 2px 0;
+    border-bottom: 1px solid #fafafa;
+  }
+  .week-summary .ws-row:last-child { border-bottom: none; }
+  .week-summary .ws-k { color: #999; font-size: 11px; }
+  .week-summary .ws-v { font-weight: 600; font-size: 11px; }
+  .week-summary .ws-v.good { color: #10b981; }
+  .week-summary .ws-v.warn { color: #f59e0b; }
+  .week-summary .ws-v.bad { color: #ef4444; }
+  .week-summary .ws-comment {
+    font-size: 10.5px;
+    color: #aaa;
+    font-style: italic;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #eee;
+  }
+  .week-summary .ws-section {
+    margin-bottom: 4px;
+  }
+  .week-summary .ws-stitle {
+    font-size: 10px;
+    font-weight: 700;
+    color: #888;
+    margin-bottom: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Week Detail</h1>
+  <button class="back-btn" onclick="history.back()">← 返回月历</button>
+</div>
+
+<!-- Week Nav -->
+<div class="week-nav">
+  <button onclick="shiftWeek(-1)">◀</button>
+  <div class="week-label" id="weekLabel"></div>
+  <button onclick="shiftWeek(1)">▶</button>
+</div>
+
+<!-- Day Cards -->
+<div class="day-cards" id="dayCards"></div>
+
+<!-- Weekly Summary -->
+<div class="week-summary" id="weekSummary"></div>
+
+<div class="footer-note">点击每天展开查看详情</div>
+<div class="nav-bar">
+  <a href="index.html" class="nav-btn inactive">月历</a>
+  <a href="week-detail.html" class="nav-btn active">周详情</a>
+  <a href="record.html" class="nav-btn inactive">记录</a>
+</div>
+<div class="footer-note">点击每天展开查看详情</div>
+
+<script src="fitness-data.js"></script>
+<script>
+// ── State ──
+let weekStart; // Monday of current week
+
+function getLogs() {
+  const fileData = window.FITNESS_DATA.logs;
+  let localData = {};
+  try { localData = JSON.parse(localStorage.getItem('fitness_log')) || {}; } catch(e) {}
+  return { ...fileData, ...localData };
+}
+
+function getWeekTemplate() {
+  return window.FITNESS_DATA.weekTemplate;
+}
+
+function getSpecialAdjustment(dateStr) {
+  return (window.FITNESS_DATA.specialAdjustments || {})[dateStr] || null;
+}
+
+// ── Week calculation ──
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function formatDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getWeekDates(monday) {
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + i);
+    dates.push(formatDate(d));
+  }
+  return dates;
+}
+
+// ── Render ──
+function renderWeek() {
+  const dates = getWeekDates(weekStart);
+  const endDate = new Date(weekStart);
+  endDate.setDate(endDate.getDate() + 6);
+
+  document.getElementById('weekLabel').textContent =
+    `${weekStart.getMonth()+1}/${weekStart.getDate()} – ${endDate.getMonth()+1}/${endDate.getDate()} · ${weekStart.getFullYear()}`;
+
+  const logs = getLogs();
+  const template = getWeekTemplate();
+  const mealNames = { breakfast: '早', lunch: '午', dinner: '晚', snack: '加' };
+
+  let html = '';
+  dates.forEach((dateStr, i) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const dow = d.getDay(); // 0=Sun
+    const dayTmpl = template[dow];
+    const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
+    const adjustment = getSpecialAdjustment(dateStr);
+
+    // Badges
+    const totalKcal = dayLogs.foods.reduce((s, f) => s + (f.kcal || 0), 0);
+    const totalProt = dayLogs.foods.reduce((s, f) => s + (f.prot || 0), 0);
+    let badgesHtml = '';
+    if (dayLogs.foods.length > 0) {
+      const proOk = totalProt >= 95;
+      badgesHtml += `<span class="badge-sm ${proOk ? 'pro-yes' : 'pro-no'}">P</span>`;
+      if (totalKcal >= 1200 && totalKcal <= 1300) {
+        badgesHtml += `<span class="badge-sm cal-yes">C</span>`;
+      } else if (totalKcal > 1300) {
+        badgesHtml += `<span class="badge-sm cal-over">C</span>`;
+      } else {
+        badgesHtml += `<span class="badge-sm cal-no">C</span>`;
+      }
+    }
+
+    // Exercises — show plan + actual side by side
+    let exHtml = '';
+
+    // Plan section
+    let plannedExs = [...dayTmpl.exercises];
+    if (adjustment && adjustment.skipExercises) plannedExs = plannedExs.filter(e => !adjustment.skipExercises.includes(e));
+    if (adjustment && adjustment.modifyExercises) plannedExs = plannedExs.map(e => adjustment.modifyExercises[e] || e);
+
+    exHtml += '<div class="ex-section"><div class="ex-label">📋 计划</div>';
+    if (plannedExs.length > 0) {
+      plannedExs.forEach(e => { exHtml += `<div class="item dim"><span class="it-left">${e}</span></div>`; });
+    } else {
+      exHtml += '<div class="item dim"><span class="it-left">休息</span></div>';
+    }
+    if (adjustment && adjustment.note) exHtml += `<div class="special-note">${adjustment.note}</div>`;
+    if (dayTmpl.note) exHtml += `<div class="coach-note">${dayTmpl.note}</div>`;
+    exHtml += '</div>';
+
+    // Actual section
+    const hasActual = dayLogs.exercises && dayLogs.exercises.length > 0;
+    if (hasActual) {
+      exHtml += '<div class="ex-section"><div class="ex-label">✅ 实际</div>';
+      dayLogs.exercises.forEach(e => {
+        exHtml += `<div class="item"><span class="it-left">${e.desc}</span><span class="it-right">${e.duration}min</span></div>`;
+      });
+      exHtml += '</div>';
+    }
+
+    // Foods
+    let foodHtml = '';
+    if (dayLogs.foods.length > 0) {
+      foodHtml += `<div class="food-summary">全天 ${totalKcal} kcal · ${Math.round(totalProt)}g 蛋白</div>`;
+      dayLogs.foods.forEach(f => {
+        foodHtml += `<div class="item">
+          <span class="it-left">${mealNames[f.mealType] || '?'} ${f.desc}</span>
+          <span class="it-right">${f.kcal}kcal ${f.prot > 0 ? f.prot+'g' : ''}</span>
+        </div>`;
+      });
+    } else {
+      foodHtml = '<div class="empty-note">未记录饮食</div>';
+    }
+
+    html += `<div class="day-card">
+      <div class="day-header" onclick="toggleDay(this)">
+        <div class="dot ${dayTmpl.type}"></div>
+        <div class="day-info">
+          <div class="day-name">${dayTmpl.dayName} · ${dayTmpl.label}</div>
+          <div class="day-date">${dateStr}</div>
+        </div>
+        <div class="day-badges">${badgesHtml}</div>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="day-body">
+        <div class="section-label">🏋️ 训练</div>
+        ${exHtml}
+        <div class="section-label">🍽 饮食</div>
+        ${foodHtml}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('dayCards').innerHTML = html;
+  renderWeekSummary(dates, logs, template);
+}
+
+function renderWeekSummary(dates, logs, template) {
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+  let trackedDays = 0, workoutDays = 0, proOkDays = 0, fatOkDays = 0;
+  let totalKcal = 0, totalProt = 0, totalFat = 0;
+  let daysWithData = 0;
+
+  // Training parts tracking
+  const partCount = {};
+  let totalExDuration = 0;
+  let strengthMin = 0, cardioMin = 0;
+
+  dates.forEach(dateStr => {
+    if (dateStr > todayStr) return;
+    const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
+    const hasFood = dayLogs.foods && dayLogs.foods.length > 0;
+    const hasEx = dayLogs.exercises && dayLogs.exercises.length > 0;
+
+    if (hasFood || hasEx) trackedDays++;
+    if (hasEx) {
+      workoutDays++;
+      dayLogs.exercises.forEach(e => {
+        totalExDuration += (e.duration || 0);
+        if (e.type === 'cardio') cardioMin += (e.duration || 0);
+        else strengthMin += (e.duration || 0);
+        const desc = e.desc || '';
+        if (/背|下拉|划船|引体/.test(desc)) partCount['背'] = (partCount['背'] || 0) + 1;
+        if (/胸|卧推|飞鸟/.test(desc)) partCount['胸'] = (partCount['胸'] || 0) + 1;
+        if (/二头|弯举/.test(desc)) partCount['二头'] = (partCount['二头'] || 0) + 1;
+        if (/三头|臂屈伸|后弯/.test(desc)) partCount['三头'] = (partCount['三头'] || 0) + 1;
+        if (/肩|前平举|侧平举|面拉/.test(desc)) partCount['肩'] = (partCount['肩'] || 0) + 1;
+        if (/腿|深蹲|硬拉|臀推/.test(desc)) partCount['腿'] = (partCount['腿'] || 0) + 1;
+        if (/核心|平板|腹|普拉提/.test(desc)) partCount['核心'] = (partCount['核心'] || 0) + 1;
+      });
+    }
+
+    if (hasFood) {
+      const kcal = dayLogs.foods.reduce((s, f) => s + (f.kcal || 0), 0);
+      const prot = dayLogs.foods.reduce((s, f) => s + (f.prot || 0), 0);
+      const fat = dayLogs.foods.reduce((s, f) => s + (f.fat || 0), 0);
+      totalKcal += kcal; totalProt += prot; totalFat += fat;
+      daysWithData++;
+      if (prot >= 95) proOkDays++;
+      if (fat <= 50) fatOkDays++;
+    }
+  });
+
+  if (trackedDays === 0) {
+    document.getElementById('weekSummary').innerHTML = '<div class="week-summary"><div class="ws-title">📊 本周小结</div><div style="font-size:12px;color:#ccc;">暂无记录</div></div>';
+    return;
+  }
+
+  const avgKcal = daysWithData > 0 ? Math.round(totalKcal / daysWithData) : 0;
+  const avgProt = daysWithData > 0 ? Math.round(totalProt / daysWithData) : 0;
+  const avgFat = daysWithData > 0 ? Math.round(totalFat / daysWithData) : 0;
+  const proRate = daysWithData > 0 ? Math.round(proOkDays / daysWithData * 100) : 0;
+
+  function vc(cls) { return `<span class="ws-v ${cls}">`; }
+
+  // ── Diet Summary ──
+  let dietHtml = `<div class="ws-section"><div class="ws-stitle">🍽 饮食</div>`;
+  dietHtml += `<div class="ws-row"><span class="ws-k">记录</span>${vc('')}${daysWithData}天</span></div>`;
+  dietHtml += `<div class="ws-row"><span class="ws-k">日均</span>${vc(avgKcal >= 1200 && avgKcal <= 1500 ? 'good' : 'warn')}${avgKcal}kcal · ${avgProt}g蛋白 · ${avgFat}g脂</span></div>`;
+  dietHtml += `<div class="ws-row"><span class="ws-k">蛋白达标</span>${vc(proRate >= 80 ? 'good' : proRate >= 50 ? 'warn' : 'bad')}${proOkDays}/${daysWithData}天</span></div>`;
+  dietHtml += `</div>`;
+
+  // ── Training Summary ──
+  const allParts = ['背', '胸', '二头', '三头', '肩', '腿', '核心'];
+  const missingParts = allParts.filter(p => !partCount[p]);
+  let trainHtml = `<div class="ws-section"><div class="ws-stitle">🏋️ 训练</div>`;
+  trainHtml += `<div class="ws-row"><span class="ws-k">训练</span>${vc(workoutDays >= 2 ? 'good' : 'warn')}${workoutDays}天 · ${totalExDuration}min</span></div>`;
+  if (strengthMin > 0 || cardioMin > 0) {
+    let timeParts = [];
+    if (strengthMin > 0) timeParts.push(`力量${strengthMin}min`);
+    if (cardioMin > 0) timeParts.push(`有氧${cardioMin}min`);
+    trainHtml += `<div class="ws-row"><span class="ws-k">时长</span><span class="ws-v">${timeParts.join(' + ')}</span></div>`;
+  }
+  const parts = Object.entries(partCount).sort((a, b) => b[1] - a[1]);
+  if (parts.length > 0) {
+    const partStr = parts.map(([p, n]) => `${p}×${n}`).join(' · ');
+    trainHtml += `<div class="ws-row"><span class="ws-k">已练</span><span class="ws-v">${partStr}</span></div>`;
+  }
+  if (missingParts.length > 0) {
+    trainHtml += `<div class="ws-row"><span class="ws-k">未练</span><span class="ws-v" style="color:#ef4444;">${missingParts.join(' · ')}</span></div>`;
+  }
+  let trainTip = '';
+  if (missingParts.length > 0) {
+    trainTip = `<div class="ws-comment">💡 下周建议：${missingParts.join('、')}</div>`;
+  }
+  trainHtml += `</div>`;
+
+  // ── Comment ──
+  let comment = '';
+  if (proRate >= 80 && workoutDays >= 2 && missingParts.length <= 3) comment = '🔥 饮食训练都在线！';
+  else if (proRate >= 60) comment = '饮食还行，蛋白再稳一点。';
+  else if (daysWithData > 0) comment = '蛋白达标率偏低，下周盯蛋白。';
+  if (workoutDays === 0 && trackedDays > 0) comment += ' 这周没练。';
+
+  document.getElementById('weekSummary').innerHTML = `<div class="week-summary"><div class="ws-title">📊 本周小结</div>${dietHtml}${trainHtml}<div class="ws-comment">${comment}</div>${trainTip}</div>`;
+}
+
+function toggleDay(header) {
+  const card = header.parentElement;
+  card.classList.toggle('open');
+}
+
+function shiftWeek(delta) {
+  weekStart.setDate(weekStart.getDate() + delta * 7);
+  renderWeek();
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  // Check for date param
+  const params = new URLSearchParams(window.location.search);
+  const dateParam = params.get('date');
+  if (dateParam) {
+    weekStart = getMonday(new Date(dateParam + 'T00:00:00'));
+  } else {
+    weekStart = getMonday(new Date());
+  }
+  renderWeek();
+});
+</script>
+</body>
+</html>

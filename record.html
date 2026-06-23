@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>饮食记录 · Food & Exercise Log</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f5f4f1;
+    color: #2c2c2c;
+    line-height: 1.6;
+    padding: 16px 16px 40px;
+    max-width: 500px;
+    margin: 0 auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 16px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .date-picker { display: flex; align-items: center; gap: 6px; background: #fff; border-radius: 10px; padding: 6px 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .date-picker button { background: none; border: none; font-size: 18px; color: #888; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .date-picker button:active { color: #333; }
+  .date-picker input { border: none; font-size: 13px; font-weight: 500; text-align: center; background: transparent; color: #333; width: 110px; outline: none; }
+  .summary-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .summary-card { background: #fff; border-radius: 14px; padding: 14px 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .summary-card .value { font-size: 20px; font-weight: 700; line-height: 1.2; }
+  .summary-card .label { font-size: 10px; color: #999; margin-top: 3px; }
+  .summary-card.over .value { color: #ef4444; }
+  .summary-card.under .value { color: #10b981; }
+  .summary-card.neutral .value { color: #333; }
+  .gap-bar { background: #f0f0f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
+  .gap-bar .fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+  .gap-bar .fill.cal { background: #3b82f6; }
+  .gap-bar .fill.pro { background: #8b5cf6; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; background: #e8e6e1; border-radius: 10px; padding: 3px; }
+  .tab-btn { flex: 1; text-align: center; padding: 10px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: #888; transition: all 0.15s; }
+  .tab-btn.active { background: #fff; color: #1a1a1a; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .form-panel { display: none; background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .form-panel.active { display: block; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-group select, .form-group input, .form-group textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #e8e6e1; border-radius: 10px; font-size: 15px; font-family: inherit; background: #fafaf9; color: #333; outline: none; transition: border-color 0.15s; }
+  .form-group select:focus, .form-group input:focus, .form-group textarea:focus { border-color: #3b82f6; background: #fff; }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .btn-primary { background: #1a1a1a; color: #fff; }
+  .btn-primary:active { background: #333; }
+  .entry-section-title { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.6px; margin: 16px 0 8px; }
+  .entry-list { display: flex; flex-direction: column; gap: 6px; }
+  .entry-item { background: #fff; border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .entry-item .info { flex: 1; min-width: 0; }
+  .entry-item .info .title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-item .info .meta { font-size: 11px; color: #999; margin-top: 2px; }
+  .entry-item .numbers { text-align: right; margin-right: 10px; flex-shrink: 0; }
+  .entry-item .numbers .kcal { font-size: 14px; font-weight: 600; }
+  .entry-item .numbers .prot { font-size: 11px; color: #8b5cf6; }
+  .entry-item .del-btn { background: none; border: none; font-size: 18px; color: #ccc; cursor: pointer; padding: 4px 6px; line-height: 1; }
+  .entry-item .del-btn:active { color: #ef4444; }
+  .meal-tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-right: 6px; }
+  .meal-tag.breakfast { background: #fef3c7; color: #92400e; }
+  .meal-tag.lunch { background: #dbeafe; color: #1e40af; }
+  .meal-tag.dinner { background: #ede9fe; color: #6d28d9; }
+  .meal-tag.snack { background: #fce7f3; color: #9d174d; }
+  .meal-tag.exercise { background: #d1fae5; color: #065f46; }
+  .empty-state { text-align: center; padding: 20px; color: #bbb; font-size: 13px; }
+  .compact-rules { background: #fff; border-radius: 14px; padding: 14px 16px; margin-top: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .compact-rules .title { font-weight: 600; font-size: 13px; margin-bottom: 8px; color: #666; }
+  .compact-rules .rule { font-size: 11.5px; color: #888; padding: 3px 0; }
+  .compact-rules .rule span { font-weight: 600; color: #555; }
+  .nav-bar { display: flex; gap: 8px; margin-top: 20px; }
+  .nav-btn { flex: 1; text-align: center; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+  .nav-btn.active { background: #1a1a1a; color: #fff; }
+  .nav-btn.inactive { background: #fff; color: #888; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .footer-note { text-align: center; font-size: 11px; color: #bbb; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Food & Exercise</h1>
+  <div class="date-picker">
+    <button onclick="shiftDate(-1)">◀</button>
+    <input type="date" id="dateInput" onchange="onDateChange()">
+    <button onclick="shiftDate(1)">▶</button>
+  </div>
+</div>
+
+<div class="summary-row">
+  <div class="summary-card" id="calCard">
+    <div class="value" id="calVal">0</div>
+    <div class="label">已摄入 kcal</div>
+    <div class="gap-bar"><div class="fill cal" id="calBar" style="width:0%"></div></div>
+  </div>
+  <div class="summary-card" id="proCard">
+    <div class="value" id="proVal">0g</div>
+    <div class="label">蛋白质</div>
+    <div class="gap-bar"><div class="fill pro" id="proBar" style="width:0%"></div></div>
+  </div>
+  <div class="summary-card neutral">
+    <div class="value" id="gapVal">—</div>
+    <div class="label">热量缺口</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('food')">🍽 添餐</button>
+  <button class="tab-btn" onclick="switchTab('exercise')">🏋️ 运动</button>
+</div>
+
+<div class="form-panel active" id="foodForm">
+  <div class="form-group"><label>餐次</label>
+    <select id="mealType">
+      <option value="breakfast">🥐 早餐</option><option value="lunch">🍱 午餐</option>
+      <option value="dinner">🍲 晚餐</option><option value="snack">🍌 加餐</option>
+    </select>
+  </div>
+  <div class="form-group"><label>食物描述</label>
+    <textarea id="foodDesc" placeholder="例：鸡胸肉150g + 糙米饭小半碗 + 西兰花"></textarea>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>热量 (kcal)</label>
+      <input type="number" id="foodKcal" placeholder="估算热量" inputmode="numeric" min="0">
+    </div>
+    <div class="form-group"><label>蛋白质 (g)</label>
+      <input type="number" id="foodProt" placeholder="估算蛋白" inputmode="numeric" min="0" step="0.1">
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="addFood()">+ 记录这一餐</button>
+</div>
+
+<div class="form-panel" id="exerciseForm">
+  <div class="form-group"><label>运动类型</label>
+    <select id="exType">
+      <option value="strength">💪 力量训练</option><option value="pilates">🧘 普拉提</option>
+      <option value="cardio">🏃 有氧</option><option value="other">📋 其他</option>
+    </select>
+  </div>
+  <div class="form-group"><label>运动详情</label>
+    <textarea id="exDesc" placeholder="例：私教课 Pull · 直臂下拉4×12 + 引体3×8…"></textarea>
+  </div>
+  <div class="form-group"><label>时长 (分钟)</label>
+    <input type="number" id="exDuration" placeholder="分钟" inputmode="numeric" min="0">
+  </div>
+  <button class="btn btn-primary" onclick="addExercise()">+ 记录运动</button>
+</div>
+
+<div class="entry-section-title">今日饮食</div>
+<div class="entry-list" id="foodList"><div class="empty-state">还没有记录，开始添加吧 ✍️</div></div>
+
+<div class="entry-section-title">今日运动</div>
+<div class="entry-list" id="exerciseList"><div class="empty-state">还没有记录</div></div>
+
+<div class="nav-bar">
+  <a href="index.html" class="nav-btn inactive">月历</a>
+  <a href="week-detail.html" class="nav-btn inactive">周详情</a>
+  <a href="record.html" class="nav-btn active">记录</a>
+</div>
+<div class="footer-note">数据保存在本地 · 刷新不丢失</div>
+
+<script src="fitness-data.js"></script>
+<script>
+const STORAGE_KEY = 'fitness_log';
+
+function getLogs() {
+  const fileData = (window.FITNESS_DATA && window.FITNESS_DATA.logs) || {};
+  let localData = {};
+  try { localData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) {}
+  return { ...fileData, ...localData };
+}
+
+function saveLogs(logs) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+}
+
+function getDateKey() { return document.getElementById('dateInput').value; }
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function setDate(ds) { document.getElementById('dateInput').value = ds; renderAll(); }
+function shiftDate(n) {
+  const d = new Date(getDateKey() + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  setDate(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+}
+function onDateChange() { renderAll(); }
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+  if (tab === 'food') {
+    document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+    document.getElementById('foodForm').classList.add('active');
+  } else {
+    document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+    document.getElementById('exerciseForm').classList.add('active');
+  }
+}
+
+function addFood() {
+  const mealType = document.getElementById('mealType').value;
+  const desc = document.getElementById('foodDesc').value.trim();
+  const kcal = parseFloat(document.getElementById('foodKcal').value);
+  const prot = parseFloat(document.getElementById('foodProt').value) || 0;
+  if (!desc) { alert('请填写食物描述'); return; }
+  if (isNaN(kcal) || kcal <= 0) { alert('请填写有效热量'); return; }
+  const logs = getLogs();
+  const key = getDateKey();
+  if (!logs[key]) logs[key] = { foods: [], exercises: [] };
+  logs[key].foods.push({ id: Date.now(), mealType, desc, kcal: Math.round(kcal), prot: Math.round(prot * 10) / 10 });
+  saveLogs(logs);
+  document.getElementById('foodDesc').value = '';
+  document.getElementById('foodKcal').value = '';
+  document.getElementById('foodProt').value = '';
+  renderAll();
+}
+
+function addExercise() {
+  const type = document.getElementById('exType').value;
+  const desc = document.getElementById('exDesc').value.trim();
+  const duration = parseInt(document.getElementById('exDuration').value) || 0;
+  if (!desc) { alert('请填写运动详情'); return; }
+  const logs = getLogs();
+  const key = getDateKey();
+  if (!logs[key]) logs[key] = { foods: [], exercises: [] };
+  logs[key].exercises.push({ id: Date.now(), type, desc, duration });
+  saveLogs(logs);
+  document.getElementById('exDesc').value = '';
+  document.getElementById('exDuration').value = '';
+  renderAll();
+}
+
+function deleteFood(id) {
+  if (!confirm('删除这条饮食记录？')) return;
+  const logs = getLogs();
+  const key = getDateKey();
+  if (logs[key]) { logs[key].foods = logs[key].foods.filter(f => f.id !== id); saveLogs(logs); renderAll(); }
+}
+function deleteExercise(id) {
+  if (!confirm('删除这条运动记录？')) return;
+  const logs = getLogs();
+  const key = getDateKey();
+  if (logs[key]) { logs[key].exercises = logs[key].exercises.filter(e => e.id !== id); saveLogs(logs); renderAll(); }
+}
+
+const MEAL_LABELS = { breakfast: ['🥐 早餐', 'breakfast'], lunch: ['🍱 午餐', 'lunch'], dinner: ['🍲 晚餐', 'dinner'], snack: ['🍌 加餐', 'snack'] };
+const EX_LABELS = { strength: ['💪 力量', 'exercise'], pilates: ['🧘 普拉提', 'exercise'], cardio: ['🏃 有氧', 'exercise'], other: ['📋 其他', 'exercise'] };
+
+function renderAll() {
+  const logs = getLogs();
+  const key = getDateKey();
+  const day = logs[key] || { foods: [], exercises: [] };
+  const totalKcal = day.foods.reduce((s, f) => s + f.kcal, 0);
+  const totalProt = day.foods.reduce((s, f) => s + f.prot, 0);
+  const calTarget = 1250, protTarget = 85;
+
+  document.getElementById('calVal').textContent = totalKcal;
+  document.getElementById('proVal').textContent = Math.round(totalProt * 10) / 10 + 'g';
+  document.getElementById('calBar').style.width = Math.min(totalKcal / calTarget * 100, 100) + '%';
+  document.getElementById('proBar').style.width = Math.min(totalProt / protTarget * 100, 100) + '%';
+
+  const calCard = document.getElementById('calCard');
+  calCard.classList.remove('over', 'under', 'neutral');
+  if (totalKcal > 1300) calCard.classList.add('over');
+  else if (totalKcal >= 1200) calCard.classList.add('under');
+  else calCard.classList.add('neutral');
+
+  const proCard = document.getElementById('proCard');
+  proCard.classList.remove('over', 'under', 'neutral');
+  proCard.classList.add(totalProt >= 85 ? 'under' : 'neutral');
+
+  const gap = calTarget - totalKcal;
+  document.getElementById('gapVal').textContent = totalKcal > 0 ? ((gap >= 0 ? '+' : '') + Math.round(-gap) + ' kcal') : '—';
+
+  const foodList = document.getElementById('foodList');
+  if (day.foods.length === 0) {
+    foodList.innerHTML = '<div class="empty-state">还没有记录，开始添加吧 ✍️</div>';
+  } else {
+    foodList.innerHTML = day.foods.map(f => {
+      const [label, cls] = MEAL_LABELS[f.mealType] || ['🍽 餐', 'snack'];
+      return `<div class="entry-item"><div class="info"><div class="title"><span class="meal-tag ${cls}">${label}</span>${escHtml(f.desc)}</div></div><div class="numbers"><div class="kcal">${f.kcal} kcal</div>${f.prot > 0 ? `<div class="prot">${f.prot}g 蛋白</div>` : ''}</div><button class="del-btn" onclick="deleteFood(${f.id})">×</button></div>`;
+    }).join('');
+  }
+
+  const exList = document.getElementById('exerciseList');
+  if (day.exercises.length === 0) {
+    exList.innerHTML = '<div class="empty-state">还没有记录</div>';
+  } else {
+    exList.innerHTML = day.exercises.map(e => {
+      const [label, cls] = EX_LABELS[e.type] || ['📋 运动', 'exercise'];
+      return `<div class="entry-item"><div class="info"><div class="title"><span class="meal-tag ${cls}">${label}</span>${escHtml(e.desc)}</div>${e.duration > 0 ? `<div class="meta">${e.duration} 分钟</div>` : ''}</div><button class="del-btn" onclick="deleteExercise(${e.id})">×</button></div>`;
+    }).join('');
+  }
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+document.addEventListener('DOMContentLoaded', () => { setDate(todayStr()); });
+</script>
+</body>
+</html>

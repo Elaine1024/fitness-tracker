@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>健身月历 · Fitness Calendar</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f5f4f1;
+    color: #2c2c2c;
+    line-height: 1.6;
+    padding: 12px 10px 40px;
+    max-width: 500px;
+    margin: 0 auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .header { text-align: center; padding: 16px 0 10px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header .subtitle { font-size: 11px; color: #999; margin-top: 2px; }
+
+  .month-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 10px; }
+  .month-nav button { background: none; border: none; font-size: 18px; color: #999; cursor: pointer; padding: 4px 8px; line-height: 1; }
+  .month-nav button:active { color: #333; }
+  .month-nav .month-label { font-size: 15px; font-weight: 700; min-width: 90px; text-align: center; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 8px 3px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .stat-card .value { font-size: 14px; font-weight: 700; color: #1a1a1a; line-height: 1.2; }
+  .stat-card .label { font-size: 8px; color: #999; margin-top: 1px; }
+
+  /* ── Current vs Target ── */
+  .vs-card {
+    display: flex; gap: 6px; margin-bottom: 10px;
+  }
+  .vs-col {
+    flex: 1; background: #fff; border-radius: 10px;
+    padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .vs-header {
+    font-size: 11px; font-weight: 700; margin-bottom: 6px;
+    padding-bottom: 4px; border-bottom: 1px solid #f0f0f0;
+  }
+  .vs-current .vs-header { color: #333; }
+  .vs-target .vs-header { color: #10b981; }
+  .vs-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 0; font-size: 12px;
+  }
+  .vs-k { color: #999; }
+  .vs-v { font-weight: 600; color: #333; }
+  .vs-v.warn { color: #d97706; }
+
+  .month-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px; }
+  .ms-card { background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .ms-card .ms-val { font-size: 20px; font-weight: 700; line-height: 1.2; }
+  .ms-card .ms-label { font-size: 9px; color: #999; margin-top: 1px; }
+  .ms-card .ms-detail { font-size: 9px; color: #aaa; margin-top: 2px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; font-size: 10px; color: #999; align-items: center; }
+  .legend .sep { color: #ddd; }
+  .legend .lg-tag { padding: 1px 6px; border-radius: 8px; font-weight: 600; font-size: 9px; color: #fff; }
+  .legend .lg-tag.pull { background: #3b82f6; }
+  .legend .lg-tag.push { background: #d97706; }
+  .legend .lg-tag.shoulder { background: #10b981; }
+  .legend .lg-tag.pilates { background: #8b5cf6; }
+  .legend .lg-tag.rest { background: #c0c0c0; }
+
+  /* Calendar */
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    text-align: center; font-size: 10px; font-weight: 600; color: #bbb;
+    margin-bottom: 3px; padding: 0 1px;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+
+  .cal-cell {
+    background: #fff; border-radius: 8px;
+    display: flex; flex-direction: column;
+    align-items: stretch;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    transition: all 0.15s;
+    min-height: 50px;
+    padding: 4px 3px 3px;
+    overflow: hidden;
+  }
+  .cal-cell:active { transform: scale(0.96); }
+  .cal-cell.empty { background: transparent; box-shadow: none; cursor: default; }
+  .cal-cell.empty:active { transform: none; }
+  .cal-cell.today { box-shadow: 0 0 0 2px #1a1a1a; }
+  .cal-cell .cell-top {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .cal-cell .day-num {
+    font-size: 12px; font-weight: 600; color: #333; line-height: 1;
+  }
+  .cal-cell .cell-tag {
+    font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 6px;
+    color: #fff; line-height: 1.4; letter-spacing: 0.3px; white-space: nowrap;
+  }
+  .cell-tag.pull { background: #3b82f6; }
+  .cell-tag.push { background: #d97706; }
+  .cell-tag.shoulder { background: #10b981; }
+  .cell-tag.pilates { background: #8b5cf6; }
+  .cell-tag.rest { background: #c0c0c0; }
+  .cell-tag.strength { background: #3b82f6; }
+  .cell-tag.cardio { background: #10b981; }
+
+  .cal-cell .cell-status {
+    display: flex; gap: 2px; margin-top: 3px; flex-wrap: wrap;
+  }
+  .cell-status .st {
+    font-size: 7.5px; font-weight: 700; padding: 1px 4px; border-radius: 4px;
+    line-height: 1.4; white-space: nowrap;
+  }
+  .st.pro-lo { background: #fee2e2; color: #991b1b; }
+  .st.cal-lo { background: #fee2e2; color: #991b1b; }
+  .st.cal-hi { background: #fef3c7; color: #92400e; }
+  .st.fat-hi { background: #fce7f3; color: #9d174d; }
+  .st.chk { background: #f0fdf4; color: #16a34a; }
+  .st.near { background: #fefce8; color: #ca8a04; }
+
+  /* Measurements */
+  .meas-card { background: #fff; border-radius: 12px; padding: 10px 14px; margin-top: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .meas-row { font-size: 12px; color: #666; font-weight: 500; text-align: center; }
+
+  .cal-cell .cell-ex {
+    font-size: 7px; color: #aaa; margin-top: 2px; line-height: 1.2;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Detail Panel */
+  .detail-panel { display: none; background: #fff; border-radius: 14px; padding: 16px; margin-top: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .detail-panel.active { display: block; }
+  .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .detail-header .dh-date { font-weight: 700; font-size: 15px; }
+  .detail-header .dh-type { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .detail-close { background: none; border: none; font-size: 18px; color: #bbb; cursor: pointer; padding: 4px; }
+  .detail-section { margin-bottom: 10px; }
+  .detail-section .ds-title { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .detail-section .ds-item { font-size: 12px; padding: 3px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #f5f5f5; }
+  .detail-section .ds-item:last-child { border-bottom: none; }
+  .ds-empty { font-size: 11px; color: #ccc; padding: 3px 0; }
+  .ds-comment { font-size: 11px; color: #888; padding: 4px 0 0; font-style: italic; border-top: 1px dashed #eee; margin-top: 4px; }
+  .ds-plan-ref { font-size: 10px; color: #bbb; padding: 4px 0 0; margin-top: 4px; border-top: 1px dashed #f0f0f0; }
+  .detail-link { display: block; text-align: center; padding: 8px; background: #1a1a1a; color: #fff; border-radius: 10px; font-size: 12px; font-weight: 600; text-decoration: none; margin-top: 8px; }
+  .detail-link:active { background: #333; }
+
+  .nav-bar { display: flex; gap: 6px; margin-top: 18px; }
+  .nav-btn { flex: 1; text-align: center; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+  .nav-btn.active { background: #1a1a1a; color: #fff; }
+  .nav-btn.inactive { background: #fff; color: #888; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .nav-btn.inactive:active { background: #eee; }
+  .cell-note { font-size: 9px; color: #c084fc; padding: 2px 0 0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; }
+  .cell-weight { font-size: 9px; color: #f59e0b; padding: 1px 0 0; font-weight: 600; }
+  .footer-note { text-align: center; font-size: 10px; color: #bbb; margin-top: 14px; }
+
+  /* Rules */
+  .compact-rules { background: #fff; border-radius: 12px; padding: 14px 16px; margin-top: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .compact-rules .title { font-weight: 600; font-size: 12px; margin-bottom: 6px; color: #666; }
+  .compact-rules .rule { font-size: 11px; color: #888; padding: 2px 0; }
+  .compact-rules .rule span { font-weight: 600; color: #555; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Fitness Calendar</h1>
+  <div class="subtitle" id="monthSubtitle">2026.06</div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="value">1175</div><div class="label">BMR kcal</div></div>
+  <div class="stat-card"><div class="value">1500</div><div class="label">摄入目标</div></div>
+  <div class="stat-card"><div class="value">≥95g</div><div class="label">蛋白质/天</div></div>
+  <div class="stat-card"><div class="value">≤50g</div><div class="label">脂肪上限</div></div>
+</div>
+
+<!-- ── Current vs Target ── -->
+<div class="vs-card" id="vsCard">
+  <div class="vs-col vs-current">
+    <div class="vs-header">📊 现状</div>
+    <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v">50.6 kg</span></div>
+    <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v warn">23.5%</span></div>
+    <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v warn">21.0 kg</span></div>
+  </div>
+  <div class="vs-col vs-target">
+    <div class="vs-header">🎯 目标</div>
+    <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v">≤21%</span></div>
+    <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v">≥23 kg</span></div>
+    <div class="vs-row"><span class="vs-k">体型</span><span class="vs-v">减脂增肌</span></div>
+  </div>
+</div>
+
+<!-- ── Body Measurements ── -->
+<div class="meas-card" id="measCard">
+  <div class="meas-row">📏 臂29 · 腰66 · 臀91 · 大腿51 (06-19)</div>
+</div>
+
+<div class="month-nav">
+  <button onclick="changeMonth(-1)">◀</button>
+  <div class="month-label" id="monthLabel">2026年6月</div>
+  <button onclick="changeMonth(1)">▶</button>
+</div>
+
+<div class="month-summary">
+  <div class="ms-card"><div class="ms-val" id="msWorkoutDays">—</div><div class="ms-label">训练天数</div></div>
+  <div class="ms-card"><div class="ms-val" id="msCompliance">—</div><div class="ms-label">达标率</div><div class="ms-detail" id="msComplianceDetail"></div></div>
+</div>
+
+<div class="legend">
+  <span class="lg-tag pull">背</span>
+  <span class="lg-tag push">胸/腿</span>
+  <span class="lg-tag shoulder">肩/三头</span>
+  <span class="lg-tag pilates">核心</span>
+  <span class="sep">|</span>
+  <span class="st fat-hi">脂⚠️</span> 脂肪>50g
+  <span class="sep">|</span>
+  <span class="st chk">✅</span> 饮食达标
+  <span class="st chk">🏋✓</span> 完成运动
+</div>
+
+<div class="cal-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+<div class="cal-grid" id="calGrid"></div>
+
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <span class="dh-date" id="dhDate"></span>
+    <span class="dh-type" id="dhType"></span>
+    <button class="detail-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="detail-section"><div class="ds-title">🏋️ 训练内容</div><div id="dhExercises"></div></div>
+  <div class="detail-section"><div class="ds-title">🍽 饮食记录</div><div id="dhFoods"></div></div>
+  <a class="detail-link" id="dhLink" href="#">查看完整周详情 →</a>
+</div>
+
+<div class="nav-bar">
+  <a href="index.html" class="nav-btn active">月历</a>
+  <a href="week-detail.html" class="nav-btn inactive">周详情</a>
+  <a href="record.html" class="nav-btn inactive">记录</a>
+</div>
+
+<!-- Iron Rules -->
+<div class="compact-rules">
+  <div class="title">📋 饮食原则 & 三条铁律</div>
+  <div class="rule"><span>蛋白质优先</span> · 每餐必有蛋白，全天 ≥95g</div>
+  <div class="rule"><span>热量缺口温和</span> · 1200-1300 kcal/天，绝不低于1200</div>
+  <div class="rule"><span>碳水不砍</span> · 训练日保证碳水支撑表现</div>
+  <div class="rule"><span>脂肪适量</span> · 不超过50g/天</div>
+  <div class="rule" style="margin-top:4px;color:#555;"><span>铁律①</span> 蛋白≥95g/天不可妥协</div>
+  <div class="rule" style="color:#555;"><span>铁律②</span> 绝不低于1200kcal</div>
+  <div class="rule" style="color:#555;"><span>铁律③</span> 训练日保证碳水</div>
+</div>
+
+<div class="footer-note">WorkBuddy 对话录入 · 页面自动更新</div>
+
+<script src="fitness-data.js"></script>
+<script>
+let currentYear = 2026, currentMonth = 6;
+let selectedDate = null;
+
+function updateMeasurements() {
+  try {
+    const m = window.FITNESS_DATA.profile.measurements;
+    if (!m) return;
+    const card = document.getElementById('measCard');
+    if (!card) return;
+    card.innerHTML = `<div class="meas-row">📏 臂${m.arm} · 腰${m.waist} · 臀${m.hip} · 大腿${m.thigh} (${m.date.slice(5)})</div>`;
+  } catch(e) {}
+}
+
+function getLogs() {
+  const fileData = window.FITNESS_DATA.logs;
+  let localData = {};
+  try { localData = JSON.parse(localStorage.getItem('fitness_log')) || {}; } catch(e) {}
+  return { ...fileData, ...localData };
+}
+
+function getWeekTemplate() { return window.FITNESS_DATA.weekTemplate; }
+function getSpecialAdjustment(ds) { return (window.FITNESS_DATA.specialAdjustments || {})[ds] || null; }
+
+function typeShort(type) {
+  const m = { pull: '上肢', push: '下肢', shoulder: '上肢', pilates: '核心', rest: '休', strength: '全身', cardio: '有氧' };
+  return m[type] || '休';
+}
+
+function typeCSS(type) {
+  const m = { strength: 'pull', cardio: 'shoulder' };
+  return m[type] || type;
+}
+
+// ── Render ──
+function renderCalendar() {
+  updateMeasurements();
+  document.getElementById('monthLabel').textContent = `${currentYear}年${currentMonth}月`;
+
+  const firstDay = new Date(currentYear, currentMonth - 1, 1);
+  const totalDays = new Date(currentYear, currentMonth, 0).getDate();
+  const startDow = firstDay.getDay();
+
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+  const logs = getLogs();
+  const template = getWeekTemplate();
+
+  let html = '';
+  for (let i = 0; i < startDow; i++) html += '<div class="cal-cell empty"></div>';
+
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(currentYear, currentMonth - 1, d).getDay();
+    const dayTmpl = template[dow];
+    const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
+
+    const isToday = dateStr === todayStr;
+
+    // Workout tag — only from actual logs, detect body parts from description
+    let wLabel = '';
+    let wCSS = '';
+    if (dayLogs.exercises && dayLogs.exercises.length > 0) {
+      const allDesc = dayLogs.exercises.map(e => e.desc).join(' ');
+      const parts = [];
+      if (/二头|背阔|直臂下拉|划船|引体|下拉/.test(allDesc)) parts.push('背');
+      if (/胸推|卧推|飞鸟|胸/.test(allDesc)) parts.push('胸');
+      if (/二头|弯举/.test(allDesc)) parts.push('二头');
+      if (/三头|臂屈伸|后弯/.test(allDesc)) parts.push('三头');
+      if (/前平举|侧平举|面拉|肩/.test(allDesc)) parts.push('肩');
+      if (/深蹲|腿举|硬拉|臀推|腿/.test(allDesc)) parts.push('腿');
+      if (/核心|平板|腹/.test(allDesc)) parts.push('核心');
+      const exTypes = dayLogs.exercises.map(e => e.type);
+      if (exTypes.includes('pilates') && !parts.includes('核心')) parts.push('核心');
+      if (exTypes.includes('cardio')) parts.push('有氧');
+
+      if (parts.length > 0) {
+        wLabel = parts.join('·');
+        // Color by first detected part
+        const first = parts[0];
+        const colorMap = { '背': 'pull', '胸': 'push', '二头': 'pull', '三头': 'shoulder', '肩': 'shoulder', '腿': 'push', '核心': 'pilates' };
+        wCSS = colorMap[first] || 'pull';
+      }
+    }
+
+    // Status badges — problem warnings + checkmarks
+    let statusHtml = '';
+    let foodOk = false;
+    let foodNear = false;
+    let exerciseDone = false;
+
+    if (dayLogs.foods && dayLogs.foods.length > 0) {
+      const kcal = dayLogs.foods.reduce((s, f) => s + (f.kcal || 0), 0);
+      const prot = dayLogs.foods.reduce((s, f) => s + (f.prot || 0), 0);
+      const fat = dayLogs.foods.reduce((s, f) => s + (f.fat || 0), 0);
+      if (fat > 50) statusHtml += '<span class="st fat-hi">脂⚠️</span>';
+      foodOk = prot >= 95 && fat <= 50;
+      foodNear = prot >= 80 && fat <= 50 && !foodOk;
+    }
+
+    if (dayLogs.exercises && dayLogs.exercises.length > 0) {
+      exerciseDone = true;
+    }
+
+    // Checkmarks
+    if (foodOk) statusHtml += '<span class="st chk">✅</span>';
+    else if (foodNear) statusHtml += '<span class="st near">✅</span>';
+    if (exerciseDone) statusHtml += '<span class="st chk">🏋✓</span>';
+
+    // Note badge (e.g. period rest)
+    let noteHtml = '';
+    if (dayLogs.note) {
+      noteHtml = `<div class="cell-note">${dayLogs.note}</div>`;
+    }
+
+    // Weight record
+    let weightHtml = '';
+    if (dayLogs.weight) {
+      weightHtml = `<div class="cell-weight">${dayLogs.weight}kg</div>`;
+    }
+
+    html += `<div class="cal-cell${isToday ? ' today' : ''}"
+      onclick="openDetail('${dateStr}')">
+      <div class="cell-top">
+        <span class="day-num">${d}</span>
+        ${wLabel ? `<span class="cell-tag ${wCSS}">${wLabel}</span>` : ''}
+      </div>
+      <div class="cell-status">${statusHtml}</div>
+      ${weightHtml}
+      ${noteHtml}
+    </div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+  updateMonthSummary();
+}
+
+function updateMonthSummary() {
+  const logs = getLogs();
+  const template = getWeekTemplate();
+  const totalDays = new Date(currentYear, currentMonth, 0).getDate();
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+  let workoutDays = 0, trackedDays = 0, protOkDays = 0;
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (dateStr > todayStr) continue;
+    const dow = new Date(currentYear, currentMonth - 1, d).getDay();
+    const dayTmpl = template[dow];
+    const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
+    if (dayTmpl.type !== 'rest' || (dayLogs.exercises && dayLogs.exercises.length > 0)) workoutDays++;
+    if (dayLogs.foods && dayLogs.foods.length > 0) {
+      trackedDays++;
+      const prot = dayLogs.foods.reduce((s, f) => s + (f.prot || 0), 0);
+      if (prot >= 95) protOkDays++;
+    }
+  }
+  document.getElementById('msWorkoutDays').textContent = workoutDays;
+  if (trackedDays > 0) {
+    const pct = Math.round(protOkDays / trackedDays * 100);
+    document.getElementById('msCompliance').textContent = pct + '%';
+    document.getElementById('msComplianceDetail').textContent = `${protOkDays}/${trackedDays} 天蛋白达标`;
+  } else {
+    document.getElementById('msCompliance').textContent = '—';
+    document.getElementById('msComplianceDetail').textContent = '暂无记录';
+  }
+}
+
+// ── Detail ──
+function openDetail(dateStr) {
+  selectedDate = dateStr;
+  const logs = getLogs();
+  const dayTmpl = getDayTemplate(dateStr);
+  const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
+  const adjustment = getSpecialAdjustment(dateStr);
+
+  document.getElementById('dhDate').textContent = dateStr + ' · ' + dayTmpl.dayName;
+  document.getElementById('dhType').textContent = dayTmpl.label;
+  document.getElementById('dhType').style.background = dayTmpl.color + '20';
+  document.getElementById('dhType').style.color = dayTmpl.color;
+
+  let exHtml = '';
+  const hasActual = dayLogs.exercises && dayLogs.exercises.length > 0;
+  if (hasActual) {
+    dayLogs.exercises.forEach(e => {
+      exHtml += `<div class="ds-item"><span>${e.desc}</span><span style="color:#999;font-size:11px;">${e.duration}min</span></div>`;
+    });
+  }
+  document.getElementById('dhExercises').innerHTML = exHtml || '<div class="ds-empty">未记录运动</div>';
+
+  const mealNames = { breakfast: '早', lunch: '午', dinner: '晚', snack: '加' };
+  let foodHtml = '';
+  if (dayLogs.foods && dayLogs.foods.length > 0) {
+    const totalKcal = dayLogs.foods.reduce((s, f) => s + (f.kcal || 0), 0);
+    const totalProt = dayLogs.foods.reduce((s, f) => s + (f.prot || 0), 0);
+    const totalFat = dayLogs.foods.reduce((s, f) => s + (f.fat || 0), 0);
+    foodHtml += `<div class="ds-item" style="font-weight:600;"><span>全天合计</span><span>${totalKcal}kcal · ${Math.round(totalProt)}g蛋白${totalFat > 0 ? ' · '+Math.round(totalFat)+'g脂肪' : ''}</span></div>`;
+
+    // Diet comment
+    let comment = '';
+    const issues = [];
+    if (totalProt < 95) issues.push(`蛋白差${95 - Math.round(totalProt)}g`);
+    if (totalFat > 50) issues.push(`脂肪超${Math.round(totalFat) - 50}g`);
+    if (totalKcal < 1200) issues.push('热量偏低');
+
+    // Veggie check
+    const allFoodDesc = dayLogs.foods.map(f => f.desc).join(' ');
+    const hasVeg = /沙拉|蔬菜|青菜|菠菜|西兰花|生菜|白菜|卷心菜|番茄|黄瓜|南瓜|萝卜|豆芽|茄子|蒲瓜|口蘑|蘑菇|毛豆|青椒|芹菜|花菜|秋葵|海带|木耳/.test(allFoodDesc);
+    const hasFruit = /水果|蓝莓|苹果|香蕉|橙|橘|西瓜|草莓|葡萄|猕猴桃|梨|桃|火龙果|芒果/.test(allFoodDesc);
+    if (!hasVeg && !hasFruit) {
+      issues.push('缺蔬果');
+    } else if (!hasVeg) {
+      issues.push('缺蔬菜');
+    } else if (!hasFruit) {
+      issues.push('缺水果');
+    }
+
+    if (issues.length === 0) {
+      comment = '✅ 蛋白达标，脂肪合理，蔬果OK！';
+    } else {
+      comment = '⚠️ ' + issues.join('，');
+      if (totalProt >= 85 && totalFat <= 50 && totalKcal >= 1200 && hasVeg && hasFruit) {
+        comment = '✅ 基本达标';
+      }
+    }
+    foodHtml += `<div class="ds-comment">${comment}</div>`;
+    dayLogs.foods.forEach(f => {
+      foodHtml += `<div class="ds-item"><span>${mealNames[f.mealType] || '?'} ${f.desc}</span><span style="color:#999;font-size:11px;">${f.kcal}kcal ${f.prot > 0 ? f.prot+'g蛋白' : ''}${f.fat > 0 ? ' '+f.fat+'g脂' : ''}</span></div>`;
+    });
+  } else {
+    foodHtml = '<div class="ds-empty">未记录饮食</div>';
+  }
+  document.getElementById('dhFoods').innerHTML = foodHtml;
+  document.getElementById('dhLink').href = `week-detail.html?date=${dateStr}`;
+  document.getElementById('detailPanel').classList.add('active');
+  renderCalendar();
+}
+
+function closeDetail() { selectedDate = null; document.getElementById('detailPanel').classList.remove('active'); renderCalendar(); }
+
+function getDayTemplate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return getWeekTemplate()[d.getDay()];
+}
+
+function changeMonth(delta) {
+  currentMonth += delta;
+  if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+  if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+  selectedDate = null;
+  document.getElementById('detailPanel').classList.remove('active');
+  renderCalendar();
+}
+
+document.addEventListener('DOMContentLoaded', renderCalendar);
+</script>
+</body>
+</html>

@@ -640,6 +640,8 @@ const DEEPSEEK_SYSTEM_PROMPT = `你是一个健身饮食解析助手。用户会
 规则：
 - mealType 只能是 breakfast/lunch/dinner/snack
 - exercise type 只能是 strength/cardio/pilates
+- 重要：同一餐的所有食物合并成一条记录，desc 中列出所有食物，kcal/prot/fat 为该餐总和
+  例如用户说「早上吃了鸡蛋白、拿铁和面包」→ 一条 breakfast，不是三条
 - 如果没有食物/运动/体重，对应数组留空或 weight 为 null
 - 估算热量和营养素，参考常见中餐和西餐数据
 - 仅返回 JSON，不要额外解释`;

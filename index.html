@@ -209,6 +209,11 @@
   .apikey-dialog .btn-save { background: #1a1a1a; color: #fff; }
   .apikey-dialog .btn-cancel { background: #f0f0f0; color: #666; }
   .apikey-dialog .apikey-hint { font-size: 10px; color: #aaa; margin-top: 8px; }
+  .apikey-dialog textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px;
+    font-size: 13px; outline: none; box-sizing: border-box; resize: vertical; font-family: inherit;
+  }
+  .apikey-dialog textarea:focus { border-color: #1a1a1a; }
 
   /* ── Toast ── */
   .toast {
@@ -317,6 +322,7 @@
 <!-- ── Voice FAB ── -->
 <div class="fab-container">
   <button class="fab fab-settings" id="btnSettings" title="设置 DeepSeek API Key">&#9881;</button>
+  <button class="fab fab-text" id="btnText" title="文字录入饮食/运动">&#9998;</button>
   <button class="fab" id="btnVoice" title="语音录入饮食/运动">&#127908;</button>
 </div>
 
@@ -330,6 +336,18 @@
       <button class="btn-save" onclick="saveApiKey()">保存</button>
     </div>
     <div class="apikey-hint">密钥仅存储在本地浏览器中</div>
+  </div>
+</div>
+
+<!-- ── Text Input Overlay ── -->
+<div class="apikey-overlay" id="textOverlay">
+  <div class="apikey-dialog">
+    <h3>文字录入</h3>
+    <textarea id="textInput" placeholder="例如：早上吃了两个鸡蛋白一杯拿铁，中午练了胸推6kg12个4组..." rows="3"></textarea>
+    <div class="apikey-actions">
+      <button class="btn-cancel" onclick="closeTextDialog()">取消</button>
+      <button class="btn-save" id="btnTextSubmit" onclick="submitText()">录入</button>
+    </div>
   </div>
 </div>
 
@@ -869,6 +887,36 @@ function mergeToLog(parsed) {
   // Refresh calendar
   renderCalendar();
 }
+
+// ── Text Input ──
+function openTextDialog() {
+  if (!getApiKey()) {
+    document.getElementById('apikeyOverlay').classList.add('show');
+    return;
+  }
+  document.getElementById('textInput').value = '';
+  document.getElementById('textOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('textInput').focus(), 100);
+}
+
+function closeTextDialog() {
+  document.getElementById('textOverlay').classList.remove('show');
+}
+
+async function submitText() {
+  const text = document.getElementById('textInput').value.trim();
+  if (!text) { showToast('请输入内容', 'error'); return; }
+  const btn = document.getElementById('btnTextSubmit');
+  btn.textContent = '处理中...';
+  btn.disabled = true;
+  await processWithDeepSeek(text);
+  btn.textContent = '录入';
+  btn.disabled = false;
+  closeTextDialog();
+}
+
+// ── Event Listeners ──
+document.getElementById('btnText').addEventListener('click', openTextDialog);
 </script>
 </body>
 </html>

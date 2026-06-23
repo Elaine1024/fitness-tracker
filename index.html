@@ -31,7 +31,7 @@
   .stat-card .value { font-size: 14px; font-weight: 700; color: #1a1a1a; line-height: 1.2; }
   .stat-card .label { font-size: 8px; color: #999; margin-top: 1px; }
 
-  /* ── Current vs Target ── */
+  /* ── Initial / Current / Target ── */
   .vs-card {
     display: flex; gap: 6px; margin-bottom: 10px;
   }
@@ -40,17 +40,18 @@
     padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
   .vs-header {
-    font-size: 11px; font-weight: 700; margin-bottom: 6px;
-    padding-bottom: 4px; border-bottom: 1px solid #f0f0f0;
+    font-size: 10px; font-weight: 700; margin-bottom: 4px;
+    padding-bottom: 3px; border-bottom: 1px solid #f0f0f0;
   }
+  .vs-init .vs-header { color: #8b5cf6; }
   .vs-current .vs-header { color: #333; }
   .vs-target .vs-header { color: #10b981; }
   .vs-row {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 2px 0; font-size: 12px;
+    padding: 1.5px 0; font-size: 11px;
   }
-  .vs-k { color: #999; }
-  .vs-v { font-weight: 600; color: #333; }
+  .vs-k { color: #999; font-size: 10px; }
+  .vs-v { font-weight: 600; color: #333; font-size: 11px; }
   .vs-v.warn { color: #d97706; }
 
   .month-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px; }
@@ -123,10 +124,6 @@
   .st.fat-hi { background: #fce7f3; color: #9d174d; }
   .st.chk { background: #f0fdf4; color: #16a34a; }
   .st.near { background: #fefce8; color: #ca8a04; }
-
-  /* Measurements */
-  .meas-card { background: #fff; border-radius: 12px; padding: 10px 14px; margin-top: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .meas-row { font-size: 12px; color: #666; font-weight: 500; text-align: center; }
 
   .cal-cell .cell-ex {
     font-size: 7px; color: #aaa; margin-top: 2px; line-height: 1.2;
@@ -241,25 +238,30 @@
   <div class="stat-card"><div class="value">≤50g</div><div class="label">脂肪上限</div></div>
 </div>
 
-<!-- ── Current vs Target ── -->
-<div class="vs-card" id="vsCard">
-  <div class="vs-col vs-current">
-    <div class="vs-header">📊 现状</div>
+<!-- ── Initial / Current / Target ── -->
+<div class="vs-card" id="triCard">
+  <div class="vs-col vs-init">
+    <div class="vs-header">📋 初始 (06-08)</div>
     <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v">50.6 kg</span></div>
     <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v warn">23.5%</span></div>
     <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v warn">21.0 kg</span></div>
+    <div class="vs-row"><span class="vs-k">臂围</span><span class="vs-v">29 cm</span></div>
+    <div class="vs-row"><span class="vs-k">腰围</span><span class="vs-v">66 cm</span></div>
+    <div class="vs-row"><span class="vs-k">臀围</span><span class="vs-v">91 cm</span></div>
+    <div class="vs-row"><span class="vs-k">大腿</span><span class="vs-v">51 cm</span></div>
+  </div>
+  <div class="vs-col vs-current" id="vsCurrent">
+    <div class="vs-header">📊 现状</div>
+    <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v" id="cvWeight">—</span></div>
+    <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v" id="cvBf">—</span></div>
+    <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v" id="cvMuscle">—</span></div>
   </div>
   <div class="vs-col vs-target">
     <div class="vs-header">🎯 目标</div>
+    <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v">48 kg</span></div>
     <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v">≤21%</span></div>
     <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v">≥23 kg</span></div>
-    <div class="vs-row"><span class="vs-k">体型</span><span class="vs-v">减脂增肌</span></div>
   </div>
-</div>
-
-<!-- ── Body Measurements ── -->
-<div class="meas-card" id="measCard">
-  <div class="meas-row">📏 臂29 · 腰66 · 臀91 · 大腿51 (06-19)</div>
 </div>
 
 <div class="month-nav">
@@ -363,10 +365,22 @@ let selectedDate = null;
 function updateMeasurements() {
   try {
     const m = window.FITNESS_DATA.profile.measurements;
-    if (!m) return;
-    const card = document.getElementById('measCard');
-    if (!card) return;
-    card.innerHTML = `<div class="meas-row">📏 臂${m.arm} · 腰${m.waist} · 臀${m.hip} · 大腿${m.thigh} (${m.date.slice(5)})</div>`;
+    const p = window.FITNESS_DATA.profile;
+    
+    // Update current stats from profile + latest weight from logs
+    const logs = getLogs();
+    let latestW = p.weight;
+    const dates = Object.keys(logs).sort().reverse();
+    for (const d of dates) {
+      if (logs[d].weight) { latestW = logs[d].weight; break; }
+    }
+    
+    document.getElementById('cvWeight').textContent = latestW + ' kg';
+    document.getElementById('cvWeight').className = 'vs-v' + (latestW < 50 ? '' : ' warn');
+    document.getElementById('cvBf').textContent = p.bodyFat + '%';
+    document.getElementById('cvBf').className = 'vs-v warn';
+    document.getElementById('cvMuscle').textContent = p.muscle + ' kg';
+    document.getElementById('cvMuscle').className = 'vs-v warn';
   } catch(e) {}
 }
 

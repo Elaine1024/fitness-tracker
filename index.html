@@ -342,12 +342,13 @@
 <!-- ── Text Input Overlay ── -->
 <div class="apikey-overlay" id="textOverlay">
   <div class="apikey-dialog">
-    <h3>文字录入</h3>
+    <h3 id="textOverlayTitle">文字录入</h3>
     <textarea id="textInput" placeholder="例如：早上吃了两个鸡蛋白一杯拿铁，中午练了胸推6kg12个4组..." rows="3"></textarea>
     <div class="apikey-actions">
       <button class="btn-cancel" onclick="closeTextDialog()">取消</button>
-      <button class="btn-save" id="btnTextSubmit" onclick="submitText()">录入</button>
+      <button class="btn-save" id="btnTextSubmit" onclick="submitText()">确认录入</button>
     </div>
+    <div id="textStatus" style="font-size:11px;color:#999;margin-top:6px;display:none;"></div>
   </div>
 </div>
 
@@ -728,8 +729,15 @@ function startRecording() {
   recognition.onresult = (event) => {
     const transcript = event.results[0][0].transcript;
     if (transcript && transcript.trim()) {
-      showToast('已识别: ' + transcript);
-      processWithDeepSeek(transcript.trim());
+      stopRecordingUI();
+      // Fill into text dialog for review
+      document.getElementById('textOverlayTitle').textContent = '语音识别 · 请确认';
+      document.getElementById('textInput').value = transcript.trim();
+      document.getElementById('textStatus').textContent = '';
+      document.getElementById('textStatus').style.display = 'none';
+      document.getElementById('textOverlay').classList.add('show');
+      document.getElementById('btnTextSubmit').textContent = '确认录入';
+      document.getElementById('btnTextSubmit').disabled = false;
     } else {
       showToast('未识别到语音内容', 'error');
     }
@@ -894,7 +902,12 @@ function openTextDialog() {
     document.getElementById('apikeyOverlay').classList.add('show');
     return;
   }
+  document.getElementById('textOverlayTitle').textContent = '文字录入';
   document.getElementById('textInput').value = '';
+  document.getElementById('textStatus').textContent = '';
+  document.getElementById('textStatus').style.display = 'none';
+  document.getElementById('btnTextSubmit').textContent = '确认录入';
+  document.getElementById('btnTextSubmit').disabled = false;
   document.getElementById('textOverlay').classList.add('show');
   setTimeout(() => document.getElementById('textInput').focus(), 100);
 }
@@ -907,11 +920,15 @@ async function submitText() {
   const text = document.getElementById('textInput').value.trim();
   if (!text) { showToast('请输入内容', 'error'); return; }
   const btn = document.getElementById('btnTextSubmit');
-  btn.textContent = '处理中...';
+  const status = document.getElementById('textStatus');
+  btn.textContent = 'AI 解析中...';
   btn.disabled = true;
+  status.textContent = '正在发送给 DeepSeek 解析...';
+  status.style.display = 'block';
   await processWithDeepSeek(text);
-  btn.textContent = '录入';
+  btn.textContent = '确认录入';
   btn.disabled = false;
+  status.style.display = 'none';
   closeTextDialog();
 }
 

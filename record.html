@@ -234,17 +234,17 @@ function addExercise() {
   renderAll();
 }
 
-function deleteFood(id) {
+function deleteFood(idx) {
   if (!confirm('删除这条饮食记录？')) return;
   const logs = getLogs();
   const key = getDateKey();
-  if (logs[key]) { logs[key].foods = logs[key].foods.filter(f => f.id !== id); saveLogs(logs); renderAll(); }
+  if (logs[key] && logs[key].foods) { logs[key].foods.splice(idx, 1); saveLogs(logs); renderAll(); }
 }
-function deleteExercise(id) {
+function deleteExercise(idx) {
   if (!confirm('删除这条运动记录？')) return;
   const logs = getLogs();
   const key = getDateKey();
-  if (logs[key]) { logs[key].exercises = logs[key].exercises.filter(e => e.id !== id); saveLogs(logs); renderAll(); }
+  if (logs[key] && logs[key].exercises) { logs[key].exercises.splice(idx, 1); saveLogs(logs); renderAll(); }
 }
 
 const MEAL_LABELS = { breakfast: ['🥐 早餐', 'breakfast'], lunch: ['🍱 午餐', 'lunch'], dinner: ['🍲 晚餐', 'dinner'], snack: ['🍌 加餐', 'snack'] };
@@ -280,9 +280,9 @@ function renderAll() {
   if (day.foods.length === 0) {
     foodList.innerHTML = '<div class="empty-state">还没有记录，开始添加吧 ✍️</div>';
   } else {
-    foodList.innerHTML = day.foods.map(f => {
+    foodList.innerHTML = day.foods.map((f, i) => {
       const [label, cls] = MEAL_LABELS[f.mealType] || ['🍽 餐', 'snack'];
-      return `<div class="entry-item"><div class="info"><div class="title"><span class="meal-tag ${cls}">${label}</span>${escHtml(f.desc)}</div></div><div class="numbers"><div class="kcal">${f.kcal} kcal</div>${f.prot > 0 ? `<div class="prot">${f.prot}g 蛋白</div>` : ''}</div><button class="del-btn" onclick="deleteFood(${f.id})">×</button></div>`;
+      return `<div class="entry-item"><div class="info"><div class="title"><span class="meal-tag ${cls}">${label}</span>${escHtml(f.desc)}</div></div><div class="numbers"><div class="kcal">${f.kcal} kcal</div>${f.prot > 0 ? `<div class="prot">${f.prot}g 蛋白</div>` : ''}</div><button class="del-btn" onclick="deleteFood(${i})">×</button></div>`;
     }).join('');
   }
 
@@ -290,9 +290,9 @@ function renderAll() {
   if (day.exercises.length === 0) {
     exList.innerHTML = '<div class="empty-state">还没有记录</div>';
   } else {
-    exList.innerHTML = day.exercises.map(e => {
+    exList.innerHTML = day.exercises.map((e, i) => {
       const [label, cls] = EX_LABELS[e.type] || ['📋 运动', 'exercise'];
-      return `<div class="entry-item"><div class="info"><div class="title"><span class="meal-tag ${cls}">${label}</span>${escHtml(e.desc)}</div>${e.duration > 0 ? `<div class="meta">${e.duration} 分钟</div>` : ''}</div><button class="del-btn" onclick="deleteExercise(${e.id})">×</button></div>`;
+      return `<div class="entry-item"><div class="info"><div class="title"><span class="meal-tag ${cls}">${label}</span>${escHtml(e.desc)}</div>${e.duration > 0 ? `<div class="meta">${e.duration} 分钟</div>` : ''}</div><button class="del-btn" onclick="deleteExercise(${i})">×</button></div>`;
     }).join('');
   }
 }

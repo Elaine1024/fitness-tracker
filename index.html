@@ -377,10 +377,7 @@ function updateMeasurements() {
     
     document.getElementById('cvWeight').textContent = latestW + ' kg';
     document.getElementById('cvWeight').className = 'vs-v' + (latestW < 50 ? '' : ' warn');
-    document.getElementById('cvBf').textContent = p.bodyFat + '%';
-    document.getElementById('cvBf').className = 'vs-v warn';
-    document.getElementById('cvMuscle').textContent = p.muscle + ' kg';
-    document.getElementById('cvMuscle').className = 'vs-v warn';
+    // Body fat and muscle not updated yet — leave as default "—"
   } catch(e) {}
 }
 

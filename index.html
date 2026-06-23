@@ -164,6 +164,62 @@
   .compact-rules .title { font-weight: 600; font-size: 12px; margin-bottom: 6px; color: #666; }
   .compact-rules .rule { font-size: 11px; color: #888; padding: 2px 0; }
   .compact-rules .rule span { font-weight: 600; color: #555; }
+
+  /* ── Voice Input ── */
+  .fab-container {
+    position: fixed; bottom: 24px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000;
+  }
+  .fab {
+    width: 52px; height: 52px; border-radius: 50%; border: none;
+    font-size: 22px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    color: #fff; background: #1a1a1a;
+  }
+  .fab:active { transform: scale(0.92); }
+  .fab.recording { background: #ef4444; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); } 50% { box-shadow: 0 0 0 12px rgba(239,68,68,0); } }
+  .fab-settings {
+    width: 40px; height: 40px; font-size: 18px; background: #fff; color: #666;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  /* ── API Key Overlay ── */
+  .apikey-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 2000; align-items: center; justify-content: center;
+  }
+  .apikey-overlay.show { display: flex; }
+  .apikey-dialog {
+    background: #fff; border-radius: 16px; padding: 20px; width: 90%; max-width: 360px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  }
+  .apikey-dialog h3 { font-size: 15px; margin-bottom: 12px; color: #333; }
+  .apikey-dialog input {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px;
+    font-size: 13px; outline: none; box-sizing: border-box;
+  }
+  .apikey-dialog input:focus { border-color: #1a1a1a; }
+  .apikey-dialog .apikey-actions {
+    display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end;
+  }
+  .apikey-dialog button {
+    padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .apikey-dialog .btn-save { background: #1a1a1a; color: #fff; }
+  .apikey-dialog .btn-cancel { background: #f0f0f0; color: #666; }
+  .apikey-dialog .apikey-hint { font-size: 10px; color: #aaa; margin-top: 8px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+    background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; font-weight: 600; z-index: 3000; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #ef4444; }
+  .toast.success { background: #10b981; }
 </style>
 </head>
 <body>
@@ -257,6 +313,28 @@
 </div>
 
 <div class="footer-note">WorkBuddy 对话录入 · 页面自动更新</div>
+
+<!-- ── Voice FAB ── -->
+<div class="fab-container">
+  <button class="fab fab-settings" id="btnSettings" title="设置 DeepSeek API Key">&#9881;</button>
+  <button class="fab" id="btnVoice" title="语音录入饮食/运动">&#127908;</button>
+</div>
+
+<!-- ── API Key Overlay ── -->
+<div class="apikey-overlay" id="apikeyOverlay">
+  <div class="apikey-dialog">
+    <h3>DeepSeek API Key</h3>
+    <input type="password" id="apikeyInput" placeholder="sk-..." autocomplete="off">
+    <div class="apikey-actions">
+      <button class="btn-cancel" onclick="closeApiKeyDialog()">取消</button>
+      <button class="btn-save" onclick="saveApiKey()">保存</button>
+    </div>
+    <div class="apikey-hint">密钥仅存储在本地浏览器中</div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
 
 <script src="fitness-data.js"></script>
 <script>
@@ -516,6 +594,281 @@ function changeMonth(delta) {
 }
 
 document.addEventListener('DOMContentLoaded', renderCalendar);
+
+// ═══════════════════════════════════════════
+// Voice Input & DeepSeek Integration
+// ═══════════════════════════════════════════
+
+const DEEPSEEK_SYSTEM_PROMPT = `你是一个健身饮食解析助手。用户会通过语音录入今天的饮食和运动情况（中文）。
+
+用户背景：
+- 女，33岁，159cm，当前体重约49.6kg，目标48kg
+- 每日蛋白质目标 ≥95g，脂肪上限 ≤50g
+- TDEE 约 1550-1650 kcal，摄入目标 1200-1300 kcal
+- BMR 约 1175 kcal
+
+请从用户的自然语言中提取信息，返回严格 JSON（不要 markdown 代码块）：
+{
+  "foods": [
+    {"mealType": "breakfast/lunch/dinner/snack", "desc": "食物描述", "kcal": 数字, "prot": 数字(克), "fat": 数字(克)}
+  ],
+  "exercises": [
+    {"type": "strength/cardio/pilates", "desc": "运动描述", "duration": 数字(分钟)}
+  ],
+  "weight": 数字或null
+}
+
+规则：
+- mealType 只能是 breakfast/lunch/dinner/snack
+- exercise type 只能是 strength/cardio/pilates
+- 如果没有食物/运动/体重，对应数组留空或 weight 为 null
+- 估算热量和营养素，参考常见中餐和西餐数据
+- 仅返回 JSON，不要额外解释`;
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || '');
+  void t.offsetWidth;
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function getApiKey() {
+  return localStorage.getItem('ds_api_key') || '';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('apikeyInput').value.trim();
+  if (!val) return showToast('请输入 API Key', 'error');
+  localStorage.setItem('ds_api_key', val);
+  closeApiKeyDialog();
+  showToast('API Key 已保存', 'success');
+}
+
+function closeApiKeyDialog() {
+  document.getElementById('apikeyOverlay').classList.remove('show');
+}
+
+document.getElementById('btnSettings').addEventListener('click', () => {
+  document.getElementById('apikeyInput').value = getApiKey();
+  document.getElementById('apikeyOverlay').classList.add('show');
+});
+
+document.getElementById('apikeyOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('apikeyOverlay')) closeApiKeyDialog();
+});
+
+// ── Voice Recognition ──
+let recognition = null;
+let isRecording = false;
+
+function initRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return null;
+  const rec = new SpeechRecognition();
+  rec.lang = 'zh-CN';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.continuous = false;
+  return rec;
+}
+
+document.getElementById('btnVoice').addEventListener('click', () => {
+  if (isRecording) {
+    stopRecording();
+    return;
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showToast('请先设置 DeepSeek API Key (点击 ⚙️)', 'error');
+    document.getElementById('apikeyOverlay').classList.add('show');
+    return;
+  }
+
+  if (!recognition) {
+    recognition = initRecognition();
+  }
+
+  if (!recognition) {
+    showToast('浏览器不支持语音识别', 'error');
+    return;
+  }
+
+  startRecording();
+});
+
+function startRecording() {
+  isRecording = true;
+  const btn = document.getElementById('btnVoice');
+  btn.classList.add('recording');
+  btn.textContent = '⏺';
+  showToast('正在聆听...');
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    if (transcript && transcript.trim()) {
+      showToast('已识别: ' + transcript);
+      processWithDeepSeek(transcript.trim());
+    } else {
+      showToast('未识别到语音内容', 'error');
+    }
+    stopRecordingUI();
+  };
+
+  recognition.onerror = (event) => {
+    let msg = '语音识别失败';
+    if (event.error === 'no-speech') msg = '未检测到语音';
+    else if (event.error === 'audio-capture') msg = '无法访问麦克风';
+    else if (event.error === 'not-allowed') msg = '麦克风权限被拒绝';
+    else if (event.error === 'network') msg = '网络错误';
+    showToast(msg, 'error');
+    stopRecordingUI();
+  };
+
+  recognition.onend = () => {
+    stopRecordingUI();
+  };
+
+  try {
+    recognition.start();
+  } catch (e) {
+    showToast('语音识别启动失败', 'error');
+    stopRecordingUI();
+  }
+}
+
+function stopRecording() {
+  if (recognition) {
+    try { recognition.abort(); } catch(e) {}
+  }
+  stopRecordingUI();
+}
+
+function stopRecordingUI() {
+  isRecording = false;
+  const btn = document.getElementById('btnVoice');
+  btn.classList.remove('recording');
+  btn.textContent = '🎤';
+}
+
+// ── DeepSeek API ──
+async function processWithDeepSeek(transcript) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showToast('API Key 未设置', 'error');
+    return;
+  }
+
+  showToast('AI 解析中...');
+
+  try {
+    const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: DEEPSEEK_SYSTEM_PROMPT },
+          { role: 'user', content: transcript }
+        ],
+        temperature: 0.3,
+        max_tokens: 1500
+      })
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      let errMsg = 'API 请求失败 (' + resp.status + ')';
+      if (resp.status === 401) errMsg = 'API Key 无效，请重新设置';
+      else if (resp.status === 402) errMsg = 'API 余额不足';
+      else if (resp.status === 429) errMsg = '请求过于频繁，请稍后再试';
+      showToast(errMsg, 'error');
+      return;
+    }
+
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      showToast('AI 返回为空', 'error');
+      return;
+    }
+
+    // Parse JSON from response (handle markdown code blocks)
+    let jsonStr = content.trim();
+    const codeMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeMatch) jsonStr = codeMatch[1].trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      showToast('AI 返回格式错误', 'error');
+      return;
+    }
+
+    // Merge with existing data
+    mergeToLog(parsed);
+  } catch (e) {
+    showToast('网络错误: ' + (e.message || '请求失败'), 'error');
+  }
+}
+
+function mergeToLog(parsed) {
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' +
+    String(today.getMonth() + 1).padStart(2, '0') + '-' +
+    String(today.getDate()).padStart(2, '0');
+
+  let allLogs = {};
+  try {
+    const raw = localStorage.getItem('fitness_log');
+    if (raw) allLogs = JSON.parse(raw);
+  } catch(e) {}
+
+  const existing = allLogs[todayStr] || { foods: [], exercises: [] };
+
+  // Merge foods (append new)
+  if (parsed.foods && parsed.foods.length > 0) {
+    existing.foods = [...(existing.foods || []), ...parsed.foods];
+  }
+
+  // Merge exercises (append new)
+  if (parsed.exercises && parsed.exercises.length > 0) {
+    existing.exercises = [...(existing.exercises || []), ...parsed.exercises];
+  }
+
+  // Update weight if provided
+  if (parsed.weight != null) {
+    existing.weight = parsed.weight;
+  }
+
+  allLogs[todayStr] = existing;
+  localStorage.setItem('fitness_log', JSON.stringify(allLogs));
+
+  // Build summary for toast
+  const parts = [];
+  if (parsed.foods && parsed.foods.length > 0) {
+    parts.push(parsed.foods.length + '条饮食');
+  }
+  if (parsed.exercises && parsed.exercises.length > 0) {
+    parts.push(parsed.exercises.length + '项运动');
+  }
+  if (parsed.weight != null) {
+    parts.push('体重' + parsed.weight + 'kg');
+  }
+  const summary = parts.length > 0 ? parts.join('，') : '无新数据';
+
+  showToast('已保存: ' + summary, 'success');
+
+  // Refresh calendar
+  renderCalendar();
+}
 </script>
 </body>
 </html>

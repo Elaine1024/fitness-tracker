@@ -364,20 +364,28 @@ let selectedDate = null;
 
 function updateMeasurements() {
   try {
-    const m = window.FITNESS_DATA.profile.measurements;
     const p = window.FITNESS_DATA.profile;
-    
-    // Update current stats from profile + latest weight from logs
     const logs = getLogs();
+    
+    // Latest weight from logs
     let latestW = p.weight;
+    let latestM = null; // latest measurements
     const dates = Object.keys(logs).sort().reverse();
     for (const d of dates) {
-      if (logs[d].weight) { latestW = logs[d].weight; break; }
+      if (logs[d].weight && !latestW) latestW = logs[d].weight;
+      if (logs[d].measurements && !latestM) latestM = logs[d].measurements;
+      if (latestW && latestM) break;
     }
+    // Fallback to initial measurements
+    if (!latestM) latestM = p.measurements;
     
-    document.getElementById('cvWeight').textContent = latestW + ' kg';
+    document.getElementById('cvWeight').textContent = latestW ? latestW + ' kg' : '—';
     document.getElementById('cvWeight').className = 'vs-v' + (latestW < 50 ? '' : ' warn');
-    // Body fat and muscle not updated yet — leave as default "—"
+    
+    if (latestM) {
+      document.getElementById('cvBf').textContent = latestM.bodyFat != null ? latestM.bodyFat + '%' : '—';
+      document.getElementById('cvMuscle').textContent = latestM.muscle != null ? latestM.muscle + ' kg' : '—';
+    }
   } catch(e) {}
 }
 
@@ -645,15 +653,22 @@ const DEEPSEEK_SYSTEM_PROMPT = `你是一个健身饮食解析助手。用户会
   "exercises": [
     {"type": "strength/cardio/pilates", "desc": "运动描述", "duration": 数字(分钟)}
   ],
-  "weight": 数字或null
+  "weight": 数字或null,
+  "bodyFat": 数字或null,
+  "muscle": 数字或null,
+  "arm": 数字或null,
+  "waist": 数字或null,
+  "hip": 数字或null,
+  "thigh": 数字或null
 }
 
 规则：
 - mealType 只能是 breakfast/lunch/dinner/snack
 - exercise type 只能是 strength/cardio/pilates
-- 重要：同一餐的所有食物合并成一条记录，desc 中列出所有食物，kcal/prot/fat 为该餐总和
-  例如用户说「早上吃了鸡蛋白、拿铁和面包」→ 一条 breakfast，不是三条
-- 如果没有食物/运动/体重，对应数组留空或 weight 为 null
+- 重要：同一餐的所有食物合并成一条记录
+- 如果用户提到围度（臂围/腰围/臀围/大腿围），填入对应字段（单位cm）
+- 如果用户提到体脂率，填入 bodyFat（百分比数字）；提到骨骼肌，填入 muscle（kg）
+- 没有提到的字段设为 null
 - 估算热量和营养素，参考常见中餐和西餐数据
 - 仅返回 JSON，不要额外解释`;
 
@@ -887,6 +902,19 @@ function mergeToLog(parsed) {
     existing.weight = parsed.weight;
   }
 
+  // Update body measurements
+  if (parsed.bodyFat != null || parsed.muscle != null ||
+      parsed.arm != null || parsed.waist != null || parsed.hip != null || parsed.thigh != null) {
+    existing.measurements = existing.measurements || {};
+    if (parsed.bodyFat != null) existing.measurements.bodyFat = parsed.bodyFat;
+    if (parsed.muscle != null) existing.measurements.muscle = parsed.muscle;
+    if (parsed.arm != null) existing.measurements.arm = parsed.arm;
+    if (parsed.waist != null) existing.measurements.waist = parsed.waist;
+    if (parsed.hip != null) existing.measurements.hip = parsed.hip;
+    if (parsed.thigh != null) existing.measurements.thigh = parsed.thigh;
+    existing.measurements.date = todayStr;
+  }
+
   allLogs[todayStr] = existing;
   localStorage.setItem('fitness_log', JSON.stringify(allLogs));
 
@@ -900,6 +928,12 @@ function mergeToLog(parsed) {
   }
   if (parsed.weight != null) {
     parts.push('体重' + parsed.weight + 'kg');
+  }
+  if (parsed.bodyFat != null) {
+    parts.push('体脂' + parsed.bodyFat + '%');
+  }
+  if (parsed.arm != null) {
+    parts.push('围度已更新');
   }
   const summary = parts.length > 0 ? parts.join('，') : '无新数据';
 

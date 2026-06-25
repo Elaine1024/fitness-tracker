@@ -367,24 +367,30 @@ function updateMeasurements() {
     const p = window.FITNESS_DATA.profile;
     const logs = getLogs();
     
-    // Latest weight from logs
-    let latestW = p.weight;
-    let latestM = null; // latest measurements
+    // Latest weight and measurements from logs (file + localStorage merged)
+    let latestW = null;
+    let latestM = null;
     const dates = Object.keys(logs).sort().reverse();
     for (const d of dates) {
-      if (logs[d].weight && !latestW) latestW = logs[d].weight;
-      if (logs[d].measurements && !latestM) latestM = logs[d].measurements;
-      if (latestW && latestM) break;
+      if (logs[d].weight && latestW == null) latestW = logs[d].weight;
+      if (logs[d].measurements && latestM == null) latestM = logs[d].measurements;
+      if (latestW != null && latestM != null) break;
     }
-    // Fallback to initial measurements
-    if (!latestM) latestM = p.measurements;
+    // Fallback to profile data
+    if (latestW == null) latestW = p.weight;
+    if (latestM == null) latestM = p.measurements;
     
-    document.getElementById('cvWeight').textContent = latestW ? latestW + ' kg' : '—';
-    document.getElementById('cvWeight').className = 'vs-v' + (latestW < 50 ? '' : ' warn');
+    const wEl = document.getElementById('cvWeight');
+    if (wEl && latestW != null) {
+      wEl.textContent = latestW + ' kg';
+      wEl.className = 'vs-v' + (latestW < 50 ? '' : ' warn');
+    }
     
     if (latestM) {
-      document.getElementById('cvBf').textContent = latestM.bodyFat != null ? latestM.bodyFat + '%' : '—';
-      document.getElementById('cvMuscle').textContent = latestM.muscle != null ? latestM.muscle + ' kg' : '—';
+      const bfEl = document.getElementById('cvBf');
+      const muEl = document.getElementById('cvMuscle');
+      if (bfEl) bfEl.textContent = latestM.bodyFat != null ? latestM.bodyFat + '%' : '—';
+      if (muEl) muEl.textContent = latestM.muscle != null ? latestM.muscle + ' kg' : '—';
     }
   } catch(e) {}
 }
@@ -651,7 +657,7 @@ const DEEPSEEK_SYSTEM_PROMPT = `你是一个健身饮食解析助手。用户会
     {"mealType": "breakfast/lunch/dinner/snack", "desc": "食物描述", "kcal": 数字, "prot": 数字(克), "fat": 数字(克)}
   ],
   "exercises": [
-    {"type": "strength/cardio/pilates", "desc": "运动描述", "duration": 数字(分钟)}
+    {"type": "strength/cardio/pilates", "desc": "运动描述", "duration": 数字(分钟), "calories": 数字或null}
   ],
   "weight": 数字或null,
   "bodyFat": 数字或null,
@@ -666,9 +672,11 @@ const DEEPSEEK_SYSTEM_PROMPT = `你是一个健身饮食解析助手。用户会
 - mealType 只能是 breakfast/lunch/dinner/snack
 - exercise type 只能是 strength/cardio/pilates
 - 重要：同一餐的所有食物合并成一条记录
-- 如果用户提到围度（臂围/腰围/臀围/大腿围），填入对应字段（单位cm）
+- 如果用户提到手表/运动消耗了多少卡路里，填入 exercises 的 calories 字段
+- 如果用户提到围度（臂围/腰围/臀围/大腿围），必须填入对应字段（单位cm，数字类型）
+  例如「臂围29腰围66」→ "arm":29, "waist":66
 - 如果用户提到体脂率，填入 bodyFat（百分比数字）；提到骨骼肌，填入 muscle（kg）
-- 没有提到的字段设为 null
+- 没有提到的字段设为 null，不要省略字段
 - 估算热量和营养素，参考常见中餐和西餐数据
 - 仅返回 JSON，不要额外解释`;
 
@@ -892,7 +900,7 @@ function mergeToLog(parsed) {
     existing.foods = [...(existing.foods || []), ...parsed.foods];
   }
 
-  // Merge exercises (append new)
+  // Merge exercises (append new) — also merge calories if provided
   if (parsed.exercises && parsed.exercises.length > 0) {
     existing.exercises = [...(existing.exercises || []), ...parsed.exercises];
   }

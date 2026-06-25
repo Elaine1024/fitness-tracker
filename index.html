@@ -874,6 +874,33 @@ async function processWithDeepSeek(transcript) {
       return;
     }
 
+    // Normalize: convert string numbers to actual numbers
+    const numFields = ['weight','bodyFat','muscle','arm','waist','hip','thigh'];
+    numFields.forEach(k => {
+      if (parsed[k] !== undefined && parsed[k] !== null && typeof parsed[k] === 'string') {
+        parsed[k] = parseFloat(parsed[k]);
+        if (isNaN(parsed[k])) parsed[k] = null;
+      }
+    });
+    // Also normalize exercise calories
+    if (parsed.exercises) {
+      parsed.exercises.forEach(e => {
+        if (e.calories !== undefined && e.calories !== null && typeof e.calories === 'string') {
+          e.calories = parseFloat(e.calories);
+          if (isNaN(e.calories)) e.calories = null;
+        }
+      });
+    }
+
+    // Debug: show what AI returned for measurements
+    const mKeys = ['bodyFat','muscle','arm','waist','hip','thigh'];
+    const mFound = mKeys.filter(k => parsed[k] != null);
+    if (mFound.length > 0) {
+      console.log('Measurements found:', mFound.map(k => k + '=' + parsed[k]).join(', '));
+    } else {
+      console.log('No measurements in AI response. Parsed keys:', Object.keys(parsed).join(', '));
+    }
+
     // Merge with existing data
     mergeToLog(parsed);
   } catch (e) {

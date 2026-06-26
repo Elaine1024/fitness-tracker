@@ -1106,6 +1106,20 @@ function saveMeasurements() {
   allLogs[todayStr] = existing;
   localStorage.setItem('fitness_log', JSON.stringify(allLogs));
 
+  // Directly update DOM
+  if (data.weight != null) {
+    const wEl = document.getElementById('cvWeight');
+    if (wEl) { wEl.textContent = data.weight + ' kg'; wEl.className = 'vs-v' + (data.weight < 50 ? '' : ' warn'); }
+  }
+  if (data.bodyFat != null) {
+    const bfEl = document.getElementById('cvBf');
+    if (bfEl) bfEl.textContent = data.bodyFat + '%';
+  }
+  if (data.muscle != null) {
+    const muEl = document.getElementById('cvMuscle');
+    if (muEl) muEl.textContent = data.muscle + ' kg';
+  }
+
   showToast('身体数据已更新', 'success');
   closeMeasDialog();
   renderCalendar();

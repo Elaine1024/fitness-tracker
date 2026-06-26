@@ -251,7 +251,7 @@
     <div class="vs-row"><span class="vs-k">大腿</span><span class="vs-v">51 cm</span></div>
   </div>
   <div class="vs-col vs-current" id="vsCurrent">
-    <div class="vs-header">📊 现状</div>
+    <div class="vs-header">📊 现状 <button onclick="openMeasDialog()" style="background:none;border:none;font-size:14px;cursor:pointer;padding:0;color:#aaa;">✏️</button></div>
     <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v" id="cvWeight">—</span></div>
     <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v" id="cvBf">—</span></div>
     <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v" id="cvMuscle">—</span></div>
@@ -351,6 +351,26 @@
       <button class="btn-save" id="btnTextSubmit" onclick="submitText()">确认录入</button>
     </div>
     <div id="textStatus" style="font-size:11px;color:#999;margin-top:6px;display:none;"></div>
+  </div>
+</div>
+
+<!-- ── Measurements Input Overlay ── -->
+<div class="apikey-overlay" id="measOverlay">
+  <div class="apikey-dialog">
+    <h3>📏 更新身体数据</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div><label style="font-size:11px;color:#888;">体重 kg</label><input type="number" id="measWeight" placeholder="49.6" step="0.1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>
+      <div><label style="font-size:11px;color:#888;">体脂 %</label><input type="number" id="measBf" placeholder="23.5" step="0.1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>
+      <div><label style="font-size:11px;color:#888;">骨骼肌 kg</label><input type="number" id="measMuscle" placeholder="21" step="0.1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>
+      <div><label style="font-size:11px;color:#888;">臂围 cm</label><input type="number" id="measArm" placeholder="29" step="0.1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>
+      <div><label style="font-size:11px;color:#888;">腰围 cm</label><input type="number" id="measWaist" placeholder="66" step="0.1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>
+      <div><label style="font-size:11px;color:#888;">臀围 cm</label><input type="number" id="measHip" placeholder="91" step="0.1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>
+      <div><label style="font-size:11px;color:#888;">大腿 cm</label><input type="number" id="measThigh" placeholder="51" step="0.1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>
+    </div>
+    <div class="apikey-actions" style="margin-top:12px;">
+      <button class="btn-cancel" onclick="closeMeasDialog()">取消</button>
+      <button class="btn-save" onclick="saveMeasurements()">保存</button>
+    </div>
   </div>
 </div>
 
@@ -1012,6 +1032,83 @@ async function submitText() {
   btn.disabled = false;
   status.style.display = 'none';
   closeTextDialog();
+}
+
+// ── Measurements Manual Input ──
+function openMeasDialog() {
+  // Pre-fill with current values
+  const logs = getLogs();
+  const dates = Object.keys(logs).sort().reverse();
+  let latestM = window.FITNESS_DATA.profile.measurements || {};
+  let latestW = window.FITNESS_DATA.profile.weight;
+  for (const d of dates) {
+    if (logs[d].measurements) { latestM = { ...latestM, ...logs[d].measurements }; break; }
+    if (logs[d].weight) { latestW = logs[d].weight; break; }
+  }
+  document.getElementById('measWeight').value = latestW || '';
+  document.getElementById('measBf').value = latestM.bodyFat || '';
+  document.getElementById('measMuscle').value = latestM.muscle || '';
+  document.getElementById('measArm').value = latestM.arm || '';
+  document.getElementById('measWaist').value = latestM.waist || '';
+  document.getElementById('measHip').value = latestM.hip || '';
+  document.getElementById('measThigh').value = latestM.thigh || '';
+  document.getElementById('measOverlay').classList.add('show');
+}
+
+function closeMeasDialog() {
+  document.getElementById('measOverlay').classList.remove('show');
+}
+
+function saveMeasurements() {
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' +
+    String(today.getMonth() + 1).padStart(2, '0') + '-' +
+    String(today.getDate()).padStart(2, '0');
+
+  const getVal = (id) => {
+    const v = document.getElementById(id).value.trim();
+    return v ? parseFloat(v) : null;
+  };
+
+  const data = {
+    weight: getVal('measWeight'),
+    bodyFat: getVal('measBf'),
+    muscle: getVal('measMuscle'),
+    arm: getVal('measArm'),
+    waist: getVal('measWaist'),
+    hip: getVal('measHip'),
+    thigh: getVal('measThigh')
+  };
+
+  // Save to localStorage
+  let allLogs = {};
+  try {
+    const raw = localStorage.getItem('fitness_log');
+    if (raw) allLogs = JSON.parse(raw);
+  } catch(e) {}
+
+  const existing = allLogs[todayStr] || { foods: [], exercises: [] };
+
+  if (data.weight != null) existing.weight = data.weight;
+
+  if (data.bodyFat != null || data.muscle != null || data.arm != null ||
+      data.waist != null || data.hip != null || data.thigh != null) {
+    existing.measurements = existing.measurements || {};
+    if (data.bodyFat != null) existing.measurements.bodyFat = data.bodyFat;
+    if (data.muscle != null) existing.measurements.muscle = data.muscle;
+    if (data.arm != null) existing.measurements.arm = data.arm;
+    if (data.waist != null) existing.measurements.waist = data.waist;
+    if (data.hip != null) existing.measurements.hip = data.hip;
+    if (data.thigh != null) existing.measurements.thigh = data.thigh;
+    existing.measurements.date = todayStr;
+  }
+
+  allLogs[todayStr] = existing;
+  localStorage.setItem('fitness_log', JSON.stringify(allLogs));
+
+  showToast('身体数据已更新', 'success');
+  closeMeasDialog();
+  renderCalendar();
 }
 
 // ── Event Listeners ──

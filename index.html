@@ -255,6 +255,10 @@
     <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v" id="cvWeight">—</span></div>
     <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v" id="cvBf">—</span></div>
     <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v" id="cvMuscle">—</span></div>
+    <div class="vs-row"><span class="vs-k">臂围</span><span class="vs-v" id="cvArm">—</span></div>
+    <div class="vs-row"><span class="vs-k">腰围</span><span class="vs-v" id="cvWaist">—</span></div>
+    <div class="vs-row"><span class="vs-k">臀围</span><span class="vs-v" id="cvHip">—</span></div>
+    <div class="vs-row"><span class="vs-k">大腿</span><span class="vs-v" id="cvThigh">—</span></div>
   </div>
   <div class="vs-col vs-target">
     <div class="vs-header">🎯 目标</div>
@@ -409,8 +413,16 @@ function updateMeasurements() {
     if (latestM) {
       const bfEl = document.getElementById('cvBf');
       const muEl = document.getElementById('cvMuscle');
+      const armEl = document.getElementById('cvArm');
+      const waistEl = document.getElementById('cvWaist');
+      const hipEl = document.getElementById('cvHip');
+      const thighEl = document.getElementById('cvThigh');
       if (bfEl) bfEl.textContent = latestM.bodyFat != null ? latestM.bodyFat + '%' : '—';
       if (muEl) muEl.textContent = latestM.muscle != null ? latestM.muscle + ' kg' : '—';
+      if (armEl) armEl.textContent = latestM.arm != null ? latestM.arm + ' cm' : '—';
+      if (waistEl) waistEl.textContent = latestM.waist != null ? latestM.waist + ' cm' : '—';
+      if (hipEl) hipEl.textContent = latestM.hip != null ? latestM.hip + ' cm' : '—';
+      if (thighEl) thighEl.textContent = latestM.thigh != null ? latestM.thigh + ' cm' : '—';
     }
   } catch(e) {}
 }
@@ -1118,6 +1130,22 @@ function saveMeasurements() {
   if (data.muscle != null) {
     const muEl = document.getElementById('cvMuscle');
     if (muEl) muEl.textContent = data.muscle + ' kg';
+  }
+  if (data.arm != null) {
+    const el = document.getElementById('cvArm');
+    if (el) el.textContent = data.arm + ' cm';
+  }
+  if (data.waist != null) {
+    const el = document.getElementById('cvWaist');
+    if (el) el.textContent = data.waist + ' cm';
+  }
+  if (data.hip != null) {
+    const el = document.getElementById('cvHip');
+    if (el) el.textContent = data.hip + ' cm';
+  }
+  if (data.thigh != null) {
+    const el = document.getElementById('cvThigh');
+    if (el) el.textContent = data.thigh + ' cm';
   }
 
   showToast('身体数据已更新', 'success');

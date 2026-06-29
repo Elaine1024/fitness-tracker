@@ -227,7 +227,7 @@
 <body>
 
 <div class="header">
-  <h1>Fitness Calendar</h1>
+  <h1>Elaine's Fitness Calendar</h1>
   <div class="subtitle" id="monthSubtitle">2026.06</div>
 </div>
 
@@ -613,12 +613,17 @@ function openDetail(dateStr) {
     const totalFat = dayLogs.foods.reduce((s, f) => s + (f.fat || 0), 0);
     foodHtml += `<div class="ds-item" style="font-weight:600;"><span>全天合计</span><span>${totalKcal}kcal · ${Math.round(totalProt)}g蛋白${totalFat > 0 ? ' · '+Math.round(totalFat)+'g脂肪' : ''}</span></div>`;
 
-    // Calorie gap: intake - TDEE (1550)
-    const gap = totalKcal - 1550;
+    // Calorie gap: intake - TDEE (1550) - exercise calories
+    let exCalories = 0;
+    if (dayLogs.exercises && dayLogs.exercises.length > 0) {
+      exCalories = dayLogs.exercises.reduce((s, e) => s + (e.calories || 0), 0);
+    }
+    const gap = totalKcal - 1550 - exCalories;
     const gapColor = gap < 0 ? '#16a34a' : gap > 0 ? '#ef4444' : '#888';
     const gapSign = gap < 0 ? '' : '+';
     const gapLabel = gap < 0 ? '缺口' : gap > 0 ? '盈余' : '平衡';
-    foodHtml += `<div class="ds-item" style="font-weight:600;"><span>🔥 热量${gapLabel}</span><span style="color:${gapColor};">${gapSign}${Math.abs(Math.round(gap))} kcal</span></div>`;
+    const gapDetail = exCalories > 0 ? ` (摄入${totalKcal} - 消耗${1550+exCalories})` : '';
+    foodHtml += `<div class="ds-item" style="font-weight:600;"><span>🔥 热量${gapLabel}</span><span style="color:${gapColor};">${gapSign}${Math.abs(Math.round(gap))} kcal${gapDetail}</span></div>`;
 
     // Diet comment
     let comment = '';

@@ -703,7 +703,8 @@ const DEEPSEEK_SYSTEM_PROMPT = `你是一个健身饮食解析助手。用户会
 规则：
 - mealType 只能是 breakfast/lunch/dinner/snack
 - exercise type 只能是 strength/cardio/pilates
-- 重要：同一餐的所有食物合并成一条记录
+- 重要：食物合并，运动拆开——每个动作单独一条 exercise 记录
+- duration：用户说了时长就填，没说填 null，不要猜
 - 运动消耗 calories：如果用户明确说了手表/消耗的卡路里数，就用用户提供的值；如果用户没说，根据运动类型和时长自动估算（力量约5kcal/min，有氧约7kcal/min，普拉提约3kcal/min）
 - 如果用户提到围度（臂围/腰围/臀围/大腿围），必须填入对应字段（单位cm，数字类型）
   例如「臂围29腰围66」→ "arm":29, "waist":66

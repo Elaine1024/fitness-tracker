@@ -613,6 +613,13 @@ function openDetail(dateStr) {
     const totalFat = dayLogs.foods.reduce((s, f) => s + (f.fat || 0), 0);
     foodHtml += `<div class="ds-item" style="font-weight:600;"><span>全天合计</span><span>${totalKcal}kcal · ${Math.round(totalProt)}g蛋白${totalFat > 0 ? ' · '+Math.round(totalFat)+'g脂肪' : ''}</span></div>`;
 
+    // Calorie gap: intake - TDEE (1550)
+    const gap = totalKcal - 1550;
+    const gapColor = gap < 0 ? '#16a34a' : gap > 0 ? '#ef4444' : '#888';
+    const gapSign = gap < 0 ? '' : '+';
+    const gapLabel = gap < 0 ? '缺口' : gap > 0 ? '盈余' : '平衡';
+    foodHtml += `<div class="ds-item" style="font-weight:600;"><span>🔥 热量${gapLabel}</span><span style="color:${gapColor};">${gapSign}${Math.abs(Math.round(gap))} kcal</span></div>`;
+
     // Diet comment
     let comment = '';
     const issues = [];

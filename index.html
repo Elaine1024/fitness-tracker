@@ -469,7 +469,7 @@ function renderCalendar() {
   const startDow = firstDay.getDay();
 
   const today = new Date();
-  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
 
   const logs = getLogs();
   const template = getWeekTemplate();
@@ -483,7 +483,7 @@ function renderCalendar() {
     const dayTmpl = template[dow];
     const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
 
-    const isToday = dateStr === todayStr;
+    const isToday = dateStr === dateStr;
 
     // Workout tag — only from actual logs, detect body parts from description
     let wLabel = '';
@@ -568,12 +568,12 @@ function updateMonthSummary() {
   const template = getWeekTemplate();
   const totalDays = new Date(currentYear, currentMonth, 0).getDate();
   const today = new Date();
-  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
 
   let workoutDays = 0, trackedDays = 0, protOkDays = 0;
   for (let d = 1; d <= totalDays; d++) {
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (dateStr > todayStr) continue;
+    if (dateStr > dateStr) continue;
     const dow = new Date(currentYear, currentMonth - 1, d).getDay();
     const dayTmpl = template[dow];
     const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
@@ -974,10 +974,11 @@ async function processWithDeepSeek(transcript) {
 }
 
 function mergeToLog(parsed) {
-  const today = new Date();
-  const todayStr = today.getFullYear() + '-' +
-    String(today.getMonth() + 1).padStart(2, '0') + '-' +
-    String(today.getDate()).padStart(2, '0');
+  // Use selected date from calendar if available, otherwise today
+  const dateStr = selectedDate || (() => {
+    const t = new Date();
+    return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  })();
 
   let allLogs = {};
   try {
@@ -985,7 +986,7 @@ function mergeToLog(parsed) {
     if (raw) allLogs = JSON.parse(raw);
   } catch(e) {}
 
-  const existing = allLogs[todayStr] || { foods: [], exercises: [] };
+  const existing = allLogs[dateStr] || { foods: [], exercises: [] };
 
   // Merge foods (append new)
   if (parsed.foods && parsed.foods.length > 0) {
@@ -1012,10 +1013,10 @@ function mergeToLog(parsed) {
     if (parsed.waist != null) existing.measurements.waist = parsed.waist;
     if (parsed.hip != null) existing.measurements.hip = parsed.hip;
     if (parsed.thigh != null) existing.measurements.thigh = parsed.thigh;
-    existing.measurements.date = todayStr;
+    existing.measurements.date = dateStr;
   }
 
-  allLogs[todayStr] = existing;
+  allLogs[dateStr] = existing;
   localStorage.setItem('fitness_log', JSON.stringify(allLogs));
 
   // Build summary for toast
@@ -1127,7 +1128,7 @@ function closeMeasDialog() {
 
 function saveMeasurements() {
   const today = new Date();
-  const todayStr = today.getFullYear() + '-' +
+  const dateStr = today.getFullYear() + '-' +
     String(today.getMonth() + 1).padStart(2, '0') + '-' +
     String(today.getDate()).padStart(2, '0');
 
@@ -1153,7 +1154,7 @@ function saveMeasurements() {
     if (raw) allLogs = JSON.parse(raw);
   } catch(e) {}
 
-  const existing = allLogs[todayStr] || { foods: [], exercises: [] };
+  const existing = allLogs[dateStr] || { foods: [], exercises: [] };
 
   if (data.weight != null) existing.weight = data.weight;
 
@@ -1166,10 +1167,10 @@ function saveMeasurements() {
     if (data.waist != null) existing.measurements.waist = data.waist;
     if (data.hip != null) existing.measurements.hip = data.hip;
     if (data.thigh != null) existing.measurements.thigh = data.thigh;
-    existing.measurements.date = todayStr;
+    existing.measurements.date = dateStr;
   }
 
-  allLogs[todayStr] = existing;
+  allLogs[dateStr] = existing;
   localStorage.setItem('fitness_log', JSON.stringify(allLogs));
 
   // Directly update DOM

@@ -392,18 +392,32 @@ function updateMeasurements() {
     const p = window.FITNESS_DATA.profile;
     const logs = getLogs();
     
-    // Latest weight and measurements from logs (file + localStorage merged)
+    // Merge all measurement fields across all log entries (newest wins per field)
     let latestW = null;
-    let latestM = null;
+    let latestM = {};
     const dates = Object.keys(logs).sort().reverse();
     for (const d of dates) {
-      if (logs[d].weight && latestW == null) latestW = logs[d].weight;
-      if (logs[d].measurements && latestM == null) latestM = logs[d].measurements;
-      if (latestW != null && latestM != null) break;
+      const entry = logs[d];
+      if (latestW == null && entry.weight != null) latestW = entry.weight;
+      if (entry.measurements) {
+        const m = entry.measurements;
+        if (latestM.bodyFat == null && m.bodyFat != null) latestM.bodyFat = m.bodyFat;
+        if (latestM.muscle == null && m.muscle != null) latestM.muscle = m.muscle;
+        if (latestM.arm == null && m.arm != null) latestM.arm = m.arm;
+        if (latestM.waist == null && m.waist != null) latestM.waist = m.waist;
+        if (latestM.hip == null && m.hip != null) latestM.hip = m.hip;
+        if (latestM.thigh == null && m.thigh != null) latestM.thigh = m.thigh;
+      }
     }
-    // Fallback to profile data
+    // Fallback to profile
     if (latestW == null) latestW = p.weight;
-    if (latestM == null) latestM = p.measurements;
+    const pm = p.measurements || {};
+    if (latestM.bodyFat == null) latestM.bodyFat = pm.bodyFat;
+    if (latestM.muscle == null) latestM.muscle = pm.muscle;
+    if (latestM.arm == null) latestM.arm = pm.arm;
+    if (latestM.waist == null) latestM.waist = pm.waist;
+    if (latestM.hip == null) latestM.hip = pm.hip;
+    if (latestM.thigh == null) latestM.thigh = pm.thigh;
     
     const wEl = document.getElementById('cvWeight');
     if (wEl && latestW != null) {
@@ -411,20 +425,16 @@ function updateMeasurements() {
       wEl.className = 'vs-v' + (latestW < 50 ? '' : ' warn');
     }
     
-    if (latestM) {
-      const bfEl = document.getElementById('cvBf');
-      const muEl = document.getElementById('cvMuscle');
-      const armEl = document.getElementById('cvArm');
-      const waistEl = document.getElementById('cvWaist');
-      const hipEl = document.getElementById('cvHip');
-      const thighEl = document.getElementById('cvThigh');
-      if (bfEl) bfEl.textContent = latestM.bodyFat != null ? latestM.bodyFat + '%' : '—';
-      if (muEl) muEl.textContent = latestM.muscle != null ? latestM.muscle + ' kg' : '—';
-      if (armEl) armEl.textContent = latestM.arm != null ? latestM.arm + ' cm' : '—';
-      if (waistEl) waistEl.textContent = latestM.waist != null ? latestM.waist + ' cm' : '—';
-      if (hipEl) hipEl.textContent = latestM.hip != null ? latestM.hip + ' cm' : '—';
-      if (thighEl) thighEl.textContent = latestM.thigh != null ? latestM.thigh + ' cm' : '—';
-    }
+    const setEl = (id, val, unit) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val != null ? val + ' ' + unit : '—';
+    };
+    setEl('cvBf', latestM.bodyFat, '%');
+    setEl('cvMuscle', latestM.muscle, 'kg');
+    setEl('cvArm', latestM.arm, 'cm');
+    setEl('cvWaist', latestM.waist, 'cm');
+    setEl('cvHip', latestM.hip, 'cm');
+    setEl('cvThigh', latestM.thigh, 'cm');
   } catch(e) {}
 }
 
@@ -1070,15 +1080,36 @@ async function submitText() {
 
 // ── Measurements Manual Input ──
 function openMeasDialog() {
-  // Pre-fill with current values
+  // Pre-fill: merge all measurement values from all log entries (newest wins per field)
   const logs = getLogs();
   const dates = Object.keys(logs).sort().reverse();
-  let latestM = window.FITNESS_DATA.profile.measurements || {};
-  let latestW = window.FITNESS_DATA.profile.weight;
+  let latestW = null;
+  let latestM = {};
+
   for (const d of dates) {
-    if (logs[d].measurements) { latestM = { ...latestM, ...logs[d].measurements }; break; }
-    if (logs[d].weight) { latestW = logs[d].weight; break; }
+    const entry = logs[d];
+    if (latestW == null && entry.weight != null) latestW = entry.weight;
+    if (entry.measurements) {
+      if (latestM.bodyFat == null && entry.measurements.bodyFat != null) latestM.bodyFat = entry.measurements.bodyFat;
+      if (latestM.muscle == null && entry.measurements.muscle != null) latestM.muscle = entry.measurements.muscle;
+      if (latestM.arm == null && entry.measurements.arm != null) latestM.arm = entry.measurements.arm;
+      if (latestM.waist == null && entry.measurements.waist != null) latestM.waist = entry.measurements.waist;
+      if (latestM.hip == null && entry.measurements.hip != null) latestM.hip = entry.measurements.hip;
+      if (latestM.thigh == null && entry.measurements.thigh != null) latestM.thigh = entry.measurements.thigh;
+    }
+    if (latestW != null && latestM.bodyFat != null && latestM.muscle != null &&
+        latestM.arm != null && latestM.waist != null && latestM.hip != null && latestM.thigh != null) break;
   }
+  // Fallback to profile
+  if (latestW == null) latestW = window.FITNESS_DATA.profile.weight;
+  const profileM = window.FITNESS_DATA.profile.measurements || {};
+  if (latestM.bodyFat == null) latestM.bodyFat = profileM.bodyFat;
+  if (latestM.muscle == null) latestM.muscle = profileM.muscle;
+  if (latestM.arm == null) latestM.arm = profileM.arm;
+  if (latestM.waist == null) latestM.waist = profileM.waist;
+  if (latestM.hip == null) latestM.hip = profileM.hip;
+  if (latestM.thigh == null) latestM.thigh = profileM.thigh;
+
   document.getElementById('measWeight').value = latestW || '';
   document.getElementById('measBf').value = latestM.bodyFat || '';
   document.getElementById('measMuscle').value = latestM.muscle || '';

@@ -384,7 +384,8 @@
 
 <script src="fitness-data.js"></script>
 <script>
-let currentYear = 2026, currentMonth = 6;
+const today = new Date();
+let currentYear = today.getFullYear(), currentMonth = today.getMonth() + 1;
 let selectedDate = null;
 
 function updateMeasurements() {

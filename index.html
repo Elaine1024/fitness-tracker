@@ -600,9 +600,15 @@ function openDetail(dateStr) {
   let exHtml = '';
   const hasActual = dayLogs.exercises && dayLogs.exercises.length > 0;
   if (hasActual) {
+    let totalExKcal = 0;
     dayLogs.exercises.forEach(e => {
-      exHtml += `<div class="ds-item"><span>${e.desc}</span><span style="color:#999;font-size:11px;">${e.duration}min</span></div>`;
+      totalExKcal += (e.calories || 0);
+      const calStr = e.calories ? ` · ${e.calories}kcal` : '';
+      exHtml += `<div class="ds-item"><span>${e.desc}</span><span style="color:#999;font-size:11px;">${e.duration ? e.duration+'min' : ''}${calStr}</span></div>`;
     });
+    if (totalExKcal > 0) {
+      exHtml += `<div class="ds-item" style="font-weight:600;color:#f59e0b;"><span>🔥 运动消耗</span><span>${Math.round(totalExKcal)} kcal</span></div>`;
+    }
   }
   document.getElementById('dhExercises').innerHTML = exHtml || '<div class="ds-empty">未记录运动</div>';
 

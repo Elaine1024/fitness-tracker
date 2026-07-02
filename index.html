@@ -572,12 +572,12 @@ function updateMonthSummary() {
 
   let workoutDays = 0, trackedDays = 0, protOkDays = 0;
   for (let d = 1; d <= totalDays; d++) {
-    const dateStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (dateStr > dateStr) continue;
+    const dStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (dStr > dateStr) continue;
     const dow = new Date(currentYear, currentMonth - 1, d).getDay();
-    const dayTmpl = template[dow];
-    const dayLogs = logs[dateStr] || { foods: [], exercises: [] };
-    if (dayTmpl.type !== 'rest' || (dayLogs.exercises && dayLogs.exercises.length > 0)) workoutDays++;
+    const dayLogs = logs[dStr] || { foods: [], exercises: [] };
+    // Only count as workout day if actual exercises recorded
+    if (dayLogs.exercises && dayLogs.exercises.length > 0) workoutDays++;
     if (dayLogs.foods && dayLogs.foods.length > 0) {
       trackedDays++;
       const prot = dayLogs.foods.reduce((s, f) => s + (f.prot || 0), 0);

@@ -53,6 +53,9 @@
   .vs-k { color: #999; font-size: 10px; }
   .vs-v { font-weight: 600; color: #333; font-size: 11px; }
   .vs-v.warn { color: #d97706; }
+  .vs-delta { font-size: 9px; font-weight: 600; margin-left: 4px; }
+  .vs-delta.good { color: #16a34a; }
+  .vs-delta.bad { color: #ef4444; }
 
   .month-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px; }
   .ms-card { background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
@@ -252,13 +255,13 @@
   </div>
   <div class="vs-col vs-current" id="vsCurrent">
     <div class="vs-header">📊 现状 <button onclick="openMeasDialog()" style="background:none;border:none;font-size:14px;cursor:pointer;padding:0;color:#aaa;">✏️</button></div>
-    <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v" id="cvWeight">—</span></div>
-    <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v" id="cvBf">—</span></div>
-    <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v" id="cvMuscle">—</span></div>
-    <div class="vs-row"><span class="vs-k">臂围</span><span class="vs-v" id="cvArm">—</span></div>
-    <div class="vs-row"><span class="vs-k">腰围</span><span class="vs-v" id="cvWaist">—</span></div>
-    <div class="vs-row"><span class="vs-k">臀围</span><span class="vs-v" id="cvHip">—</span></div>
-    <div class="vs-row"><span class="vs-k">大腿</span><span class="vs-v" id="cvThigh">—</span></div>
+    <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v"><span id="cvWeight">—</span><span class="vs-delta" id="cvWeightD"></span></span></div>
+    <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v"><span id="cvBf">—</span><span class="vs-delta" id="cvBfD"></span></span></div>
+    <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v"><span id="cvMuscle">—</span><span class="vs-delta" id="cvMuscleD"></span></span></div>
+    <div class="vs-row"><span class="vs-k">臂围</span><span class="vs-v"><span id="cvArm">—</span><span class="vs-delta" id="cvArmD"></span></span></div>
+    <div class="vs-row"><span class="vs-k">腰围</span><span class="vs-v"><span id="cvWaist">—</span><span class="vs-delta" id="cvWaistD"></span></span></div>
+    <div class="vs-row"><span class="vs-k">臀围</span><span class="vs-v"><span id="cvHip">—</span><span class="vs-delta" id="cvHipD"></span></span></div>
+    <div class="vs-row"><span class="vs-k">大腿</span><span class="vs-v"><span id="cvThigh">—</span><span class="vs-delta" id="cvThighD"></span></span></div>
   </div>
   <div class="vs-col vs-target">
     <div class="vs-header">🎯 目标</div>
@@ -420,22 +423,42 @@ function updateMeasurements() {
     if (latestM.hip == null) latestM.hip = pm.hip;
     if (latestM.thigh == null) latestM.thigh = pm.thigh;
     
-    const wEl = document.getElementById('cvWeight');
-    if (wEl && latestW != null) {
-      wEl.textContent = latestW + ' kg';
-      wEl.className = 'vs-v' + (latestW < 50 ? '' : ' warn');
-    }
-    
-    const setEl = (id, val, unit) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val != null ? val + ' ' + unit : '—';
+    // Initial values from profile for delta calculation
+    const init = {
+      weight: p.weight,
+      bodyFat: (p.measurements && p.measurements.bodyFat) || p.bodyFat,
+      muscle: (p.measurements && p.measurements.muscle) || p.muscle,
+      arm: (p.measurements && p.measurements.arm) || null,
+      waist: (p.measurements && p.measurements.waist) || null,
+      hip: (p.measurements && p.measurements.hip) || null,
+      thigh: (p.measurements && p.measurements.thigh) || null
     };
-    setEl('cvBf', latestM.bodyFat, '%');
-    setEl('cvMuscle', latestM.muscle, 'kg');
-    setEl('cvArm', latestM.arm, 'cm');
-    setEl('cvWaist', latestM.waist, 'cm');
-    setEl('cvHip', latestM.hip, 'cm');
-    setEl('cvThigh', latestM.thigh, 'cm');
+
+    // Helper: set value + delta
+    const setWithDelta = (valId, deltaId, cur, initVal, unit, better) => {
+      const vEl = document.getElementById(valId);
+      const dEl = document.getElementById(deltaId);
+      if (!vEl) return;
+      vEl.textContent = cur != null ? cur + ' ' + unit : '—';
+      if (dEl && cur != null && initVal != null) {
+        const diff = Math.round((cur - initVal) * 10) / 10;
+        if (diff !== 0) {
+          const isGood = better === 'down' ? diff < 0 : diff > 0;
+          dEl.textContent = (diff > 0 ? '+' : '') + diff;
+          dEl.className = 'vs-delta ' + (isGood ? 'good' : 'bad');
+        } else {
+          dEl.textContent = '';
+        }
+      }
+    };
+
+    setWithDelta('cvWeight', 'cvWeightD', latestW, init.weight, 'kg', 'down');
+    setWithDelta('cvBf', 'cvBfD', latestM.bodyFat, init.bodyFat, '%', 'down');
+    setWithDelta('cvMuscle', 'cvMuscleD', latestM.muscle, init.muscle, 'kg', 'up');
+    setWithDelta('cvArm', 'cvArmD', latestM.arm, init.arm, 'cm', 'down');
+    setWithDelta('cvWaist', 'cvWaistD', latestM.waist, init.waist, 'cm', 'down');
+    setWithDelta('cvHip', 'cvHipD', latestM.hip, init.hip, 'cm', 'down');
+    setWithDelta('cvThigh', 'cvThighD', latestM.thigh, init.thigh, 'cm', 'down');
   } catch(e) {}
 }
 
@@ -1173,36 +1196,7 @@ function saveMeasurements() {
   allLogs[dateStr] = existing;
   localStorage.setItem('fitness_log', JSON.stringify(allLogs));
 
-  // Directly update DOM
-  if (data.weight != null) {
-    const wEl = document.getElementById('cvWeight');
-    if (wEl) { wEl.textContent = data.weight + ' kg'; wEl.className = 'vs-v' + (data.weight < 50 ? '' : ' warn'); }
-  }
-  if (data.bodyFat != null) {
-    const bfEl = document.getElementById('cvBf');
-    if (bfEl) bfEl.textContent = data.bodyFat + '%';
-  }
-  if (data.muscle != null) {
-    const muEl = document.getElementById('cvMuscle');
-    if (muEl) muEl.textContent = data.muscle + ' kg';
-  }
-  if (data.arm != null) {
-    const el = document.getElementById('cvArm');
-    if (el) el.textContent = data.arm + ' cm';
-  }
-  if (data.waist != null) {
-    const el = document.getElementById('cvWaist');
-    if (el) el.textContent = data.waist + ' cm';
-  }
-  if (data.hip != null) {
-    const el = document.getElementById('cvHip');
-    if (el) el.textContent = data.hip + ' cm';
-  }
-  if (data.thigh != null) {
-    const el = document.getElementById('cvThigh');
-    if (el) el.textContent = data.thigh + ' cm';
-  }
-
+  // Directly update DOM — then let updateMeasurements handle deltas
   showToast('身体数据已更新', 'success');
   closeMeasDialog();
   renderCalendar();

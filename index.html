@@ -431,7 +431,6 @@ function updateMeasurements() {
     }
     // Fallback to profile
     if (latestW == null) latestW = p.weight;
-    const pm = p.measurements || {};
     if (latestM.bodyFat == null) latestM.bodyFat = pm.bodyFat;
     if (latestM.muscle == null) latestM.muscle = pm.muscle;
     if (latestM.arm == null) latestM.arm = pm.arm;

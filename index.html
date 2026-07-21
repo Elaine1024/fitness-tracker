@@ -243,15 +243,15 @@
 
 <!-- ── Initial / Current / Target ── -->
 <div class="vs-card" id="triCard">
-  <div class="vs-col vs-init">
+  <div class="vs-col vs-init" id="vsInitial">
     <div class="vs-header">📋 初始 (06-08)</div>
-    <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v">50.6 kg</span></div>
-    <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v warn">23.5%</span></div>
-    <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v warn">21.0 kg</span></div>
-    <div class="vs-row"><span class="vs-k">臂围</span><span class="vs-v">29 cm</span></div>
-    <div class="vs-row"><span class="vs-k">腰围</span><span class="vs-v">66 cm</span></div>
-    <div class="vs-row"><span class="vs-k">臀围</span><span class="vs-v">91 cm</span></div>
-    <div class="vs-row"><span class="vs-k">大腿</span><span class="vs-v">51 cm</span></div>
+    <div class="vs-row"><span class="vs-k">体重</span><span class="vs-v" id="ivWeight">—</span></div>
+    <div class="vs-row"><span class="vs-k">体脂</span><span class="vs-v" id="ivBf">—</span></div>
+    <div class="vs-row"><span class="vs-k">骨骼肌</span><span class="vs-v" id="ivMuscle">—</span></div>
+    <div class="vs-row"><span class="vs-k">臂围</span><span class="vs-v" id="ivArm">—</span></div>
+    <div class="vs-row"><span class="vs-k">腰围</span><span class="vs-v" id="ivWaist">—</span></div>
+    <div class="vs-row"><span class="vs-k">臀围</span><span class="vs-v" id="ivHip">—</span></div>
+    <div class="vs-row"><span class="vs-k">大腿</span><span class="vs-v" id="ivThigh">—</span></div>
   </div>
   <div class="vs-col vs-current" id="vsCurrent">
     <div class="vs-header">📊 现状 <button onclick="openMeasDialog()" style="background:none;border:none;font-size:14px;cursor:pointer;padding:0;color:#aaa;">✏️</button></div>
@@ -395,6 +395,22 @@ function updateMeasurements() {
   try {
     const p = window.FITNESS_DATA.profile;
     const logs = getLogs();
+    
+    // Render Initial column from profile
+    const setInit = (id, val, unit, warn) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val != null ? val + ' ' + unit : '—';
+      if (warn) el.classList.add('warn'); else el.classList.remove('warn');
+    };
+    setInit('ivWeight', p.weight, 'kg', false);
+    setInit('ivBf', p.bodyFat, '%', true);
+    setInit('ivMuscle', p.muscle, 'kg', true);
+    const pm = p.measurements || {};
+    setInit('ivArm', pm.arm, 'cm', false);
+    setInit('ivWaist', pm.waist, 'cm', false);
+    setInit('ivHip', pm.hip, 'cm', false);
+    setInit('ivThigh', pm.thigh, 'cm', false);
     
     // Merge all measurement fields across all log entries (newest wins per field)
     let latestW = null;

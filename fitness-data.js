@@ -9,7 +9,7 @@ window.FITNESS_DATA = {
     name: "9010598",
     age: 33,
     height: 159,
-    weight: 49.8,
+    weight: 50.6,
     bodyFat: 23.5,
     muscle: 21,
     bmr: 1175,
